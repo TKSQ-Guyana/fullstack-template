@@ -1,0 +1,84 @@
+openapi: 3.1.0
+info:
+  title: App Backend API
+  version: 0.1.0
+  description: |
+    The template's API contract. MAINTAINED PAIRWISE with the Postman
+    collection at docs/postman/ — any route/param/contract change updates both
+    in the same commit. Served as Swagger UI at `<base>/docs/` when
+    API_DOCS_ENABLED (on in the dev stack, off everywhere else).
+servers:
+  - url: /app/v1
+    description: Frontend proxy path
+  - url: /api/v1
+    description: Direct path (Postman, smoke tests)
+tags:
+  - name: health
+    description: Liveness and dependency readiness
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      tags: [health]
+      summary: Liveness + dependency readiness
+      description: |
+        Mounted at the SERVER ROOT (outside the versioned base paths), so
+        infrastructure needs no API knowledge to probe it. The database is the
+        only hard dependency; everything else reports but never fails the
+        check.
+      servers:
+        - url: /
+      responses:
+        '200':
+          description: Healthy (db reachable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: Degraded (db unreachable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+components:
+  schemas:
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        db:
+          type: boolean
+        redis:
+          oneOf:
+            - type: boolean
+            - type: string
+              enum: [disabled]
+        authMode:
+          type: string
+          enum: [enforce, optional, disabled]
+        uptimeSeconds:
+          type: integer
+    Problem:
+      type: object
+      description: RFC-7807 problem+json — the error shape every endpoint answers with.
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        violations:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
