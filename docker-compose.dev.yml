@@ -37,7 +37,7 @@ services:
     ports:
       # 5433 on purpose: dev machines often run PostgreSQL as a host service
       # on 5432. Host psql reaches this one with -p 5433.
-      - '5433:5432'
+      - '${APP_PG_PORT:-5433}:5432'
     volumes:
       - dev-pg-data:/var/lib/postgresql/data
     healthcheck:
@@ -62,10 +62,10 @@ services:
       # issuer localhost:8085 everywhere; backchannel-dynamic keeps the
       # in-network URL usable for JWKS, the password grant and the admin API
       # (which is how kc-bootstrap below seeds through keycloak:8080).
-      KC_HOSTNAME: http://localhost:8085
+      KC_HOSTNAME: http://localhost:${APP_KC_PORT:-8085}
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: 'true'
     ports:
-      - '8085:8080'
+      - '${APP_KC_PORT:-8085}:8080'
     volumes:
       # PERSISTENT: the dev H2 database (realm + seeded users) survives
       # container recreates. kc-bootstrap re-seeds on every up, so users and
@@ -139,10 +139,10 @@ services:
     image: axllent/mailpit:v1.27
     container_name: app-dev-mailpit
     ports:
-      - '8025:8025'
+      - '${APP_MAILPIT_PORT:-8025}:8025'
       # SMTP on the host too, so a script outside the stack can send into the
       # sink (the backend reaches it as mailpit:1025 on the compose network).
-      - '1025:1025'
+      - '${APP_SMTP_PORT:-1025}:1025'
     restart: unless-stopped
 
   # ─── Local Mayan EDMS — the document store, behind the `dms` PROFILE ────────
@@ -173,7 +173,7 @@ services:
     container_name: app-dev-mayan
     profiles: ['dms']
     ports:
-      - '8888:8000'
+      - '${APP_MAYAN_PORT:-8888}:8000'
     environment:
       MAYAN_DATABASES: "{'default':{'ENGINE':'django.db.backends.postgresql','NAME':'mayan','PASSWORD':'mayanpass','USER':'mayan','HOST':'mayan-db'}}"
       MAYAN_CELERY_BROKER_URL: redis://mayan-redis:6379/0
@@ -235,7 +235,7 @@ services:
       dockerfile: backend/Dockerfile
     container_name: app-dev-backend
     ports:
-      - '8081:8081'
+      - '${APP_BACKEND_PORT:-8081}:8081'
     environment:
       PORT: 8081
       APP_NAME: ${APP_NAME:-App Portal}
@@ -243,7 +243,7 @@ services:
       # 5173 = vite dev server, 3000 = the containerized frontend. Same-origin
       # calls through either proxy carry no Origin, so this only matters for
       # direct calls.
-      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+      CORS_ORIGINS: http://localhost:5173,http://localhost:${APP_FRONTEND_PORT:-3000}
       # The in-stack Postgres above. The entrypoint applies migrations before
       # serving, so a fresh volume bootstraps the whole schema.
       DATABASE_URL: ${APP_DATABASE_URL:-postgres://postgres:postgres@postgres:5432/app_db}
@@ -254,7 +254,7 @@ services:
       # JWKS is fetched in-network; the browser's tokens name localhost:8085 as
       # issuer, so the issuer check is pinned to that.
       KC_URL: http://keycloak:8080
-      KC_ISSUER: http://localhost:8085/realms/app-realm
+      KC_ISSUER: http://localhost:${APP_KC_PORT:-8085}/realms/app-realm
       KC_REALM: app-realm
       KC_CLIENT_ID: web-app
       # The image defaults this to true (production posture); this stack is
@@ -283,8 +283,8 @@ services:
       # desktop too — every host must agree or the passkey binds to a site the
       # ceremony never sees.
       MFA_RP_ID: ${APP_MFA_RP_ID:-localhost}
-      MFA_ORIGINS: ${APP_MFA_ORIGINS:-http://localhost:3000,http://localhost:5173}
-      MFA_PUBLIC_URL: ${APP_MFA_PUBLIC_URL:-http://localhost:3000}
+      MFA_ORIGINS: ${APP_MFA_ORIGINS:-http://localhost:${APP_FRONTEND_PORT:-3000},http://localhost:5173}
+      MFA_PUBLIC_URL: ${APP_MFA_PUBLIC_URL:-http://localhost:${APP_FRONTEND_PORT:-3000}}
       # FALSE only here. The approval page refuses desktop browsers in any real
       # environment; on this stack a laptop has to be able to walk the flow.
       # The same-device refusal stays ON — it never blocks a legitimate phone.
@@ -304,7 +304,7 @@ services:
       KC_SERVICE_CLIENT_SECRET: ${APP_KC_SERVICE_CLIENT_SECRET:-dev-provisioning-secret}
       # Where the links in mail point — the origin the RECIPIENT's browser can
       # reach.
-      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:3000}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:${APP_FRONTEND_PORT:-3000}}
       LOG_FORMAT: json
     # ─── Outbound email: ON by default, INTO MAILPIT ─────────────────────────
     # mail.dev.env (committed, no secret) points the mailer at the sink above,
@@ -336,11 +336,11 @@ services:
       dockerfile: frontend/Dockerfile
     container_name: app-dev-frontend
     ports:
-      - '3000:80'
+      - '${APP_FRONTEND_PORT:-3000}:80'
     environment:
       APP_NAME: ${APP_NAME:-App Portal}
       # What the BROWSER uses — must be reachable from the host machine.
-      KC_URL: http://localhost:8085
+      KC_URL: http://localhost:${APP_KC_PORT:-8085}
       # What NGINX uses server-to-server (the /kcadmin proxy).
       KC_INTERNAL_URL: http://keycloak:8080
       KC_REALM: app-realm
