@@ -16,6 +16,7 @@ import { meRouter } from './routes/me.js'
 import { accountsRouter } from './routes/accounts.js'
 import { passwordSetupRouter } from './routes/passwordSetup.js'
 import { documentsRouter } from './routes/documents.js'
+import { notesRouter } from './routes/notes.js'
 import { buildDocsRouter } from './routes/docs.js'
 import { buildMfaRouter } from './mfa/index.js'
 
@@ -71,6 +72,7 @@ export function buildApp(): express.Express {
   api.use(kcadminRouter)
   api.use(accountsRouter)
   api.use(meRouter)
+  api.use(notesRouter)
   api.use(documentsRouter)
 
   for (const basePath of env.basePaths) app.use(basePath, api)
