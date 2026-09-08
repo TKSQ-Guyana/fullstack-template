@@ -1,0 +1,4 @@
+# One line, load-bearing: every text file is committed with LF endings no
+# matter which OS checked it out. Shell scripts copied into Linux containers
+# (docker-entrypoint.sh, /docker-entrypoint.d hooks) break with CRLF.
+* text=auto eol=lf

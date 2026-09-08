@@ -1,0 +1,135 @@
+# CI must not be weaker than a developer's own pre-push hook: the same
+# lint / format / typecheck / test / build gates, one job per workspace.
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - development
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.gitignore'
+  pull_request:
+    branches:
+      - main
+      - development
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.gitignore'
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend — lint, typecheck, test & build
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft != true
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # Workspaces share the root lockfile; install from the root so the
+      # backend's node_modules resolve exactly as they do locally.
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+        working-directory: .
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+  frontend:
+    name: Frontend — lint, test & build
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft != true
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+        working-directory: .
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+  mfa-ui:
+    name: MFA UI — lint & build
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft != true
+    defaults:
+      run:
+        working-directory: mfa-ui
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+        working-directory: .
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
