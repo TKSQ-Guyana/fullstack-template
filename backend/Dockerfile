@@ -13,7 +13,7 @@ COPY package.json package-lock.json ./
 COPY backend/package.json backend/
 # The workspace's dependency tree from the ROOT lockfile — reproducible, and
 # the only place the tree is recorded.
-RUN npm ci --workspace=backend --include-workspace-root=false --no-audit --no-fund
+RUN npm ci --workspace=backend --include-workspace-root=false --ignore-scripts --no-audit --no-fund
 COPY backend/tsconfig.json backend/tsconfig.build.json backend/
 COPY backend/src backend/src
 # scripts/ too: `npm run build` is tsc PLUS copy-templates.mjs, which lifts the
@@ -33,7 +33,7 @@ FROM node:22-alpine AS mfa-ui
 WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY mfa-ui/package.json mfa-ui/
-RUN npm ci --workspace=mfa-ui --include-workspace-root=false --no-audit --no-fund
+RUN npm ci --workspace=mfa-ui --include-workspace-root=false --ignore-scripts --no-audit --no-fund
 COPY mfa-ui/tsconfig.json mfa-ui/vite.config.ts mfa-ui/index.html mfa-ui/
 COPY mfa-ui/src mfa-ui/src
 WORKDIR /repo/mfa-ui
@@ -55,7 +55,7 @@ ENV NODE_ENV=production \
 WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY backend/package.json backend/
-RUN npm ci --workspace=backend --include-workspace-root=false --omit=dev --no-audit --no-fund \
+RUN npm ci --workspace=backend --include-workspace-root=false --omit=dev --ignore-scripts --no-audit --no-fund \
   && npm cache clean --force
 WORKDIR /repo/backend
 COPY --from=build /repo/backend/dist ./dist

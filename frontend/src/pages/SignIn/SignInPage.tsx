@@ -6,7 +6,8 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useSession } from '@/auth/SessionProvider'
-import { AuthError } from '@/auth/keycloak'
+import { AuthError, getClaims } from '@/auth/keycloak'
+import { identityFrom } from '@/auth/claims'
 import * as mfa from '@/auth/mfa'
 import AuthLayout from '@/layouts/AuthLayout'
 import { Button } from '@/components/ui/Button'
@@ -28,11 +29,16 @@ export default function SignInPage() {
   const [challenge, setChallenge] = useState<mfa.Challenge | null>(null)
 
   const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname
-  const destination = from ?? resolveHome(session.activeRole)
+
+  // COMPUTED FROM THE LIVE SNAPSHOT, not from this render's session: onSubmit
+  // runs after signIn resolves, and a destination captured at render time
+  // would still see the signed-out activeRole (null -> /no-access — the bug
+  // the first cold-start verification caught).
+  const destination = () => from ?? resolveHome(identityFrom(getClaims()).activeRole)
 
   // Already fully signed in (session + factor) — nothing to do here.
   if (!session.restoring && session.authenticated && mfa.mfaSatisfied(session.username)) {
-    return <Navigate to={destination} replace />
+    return <Navigate to={destination()} replace />
   }
 
   async function runChallenge(user: string): Promise<void> {
@@ -41,7 +47,7 @@ export default function SignInPage() {
     setStep('approval')
     await mfa.waitForApproval(c.token)
     await mfa.complete(c.token)
-    navigate(destination, { replace: true })
+    navigate(destination(), { replace: true })
   }
 
   async function onSubmit(e: FormEvent): Promise<void> {
@@ -53,7 +59,7 @@ export default function SignInPage() {
       if (mfa.mfaEnabled()) {
         await runChallenge(username.trim())
       } else {
-        navigate(destination, { replace: true })
+        navigate(destination(), { replace: true })
       }
     } catch (err) {
       setStep('credentials')

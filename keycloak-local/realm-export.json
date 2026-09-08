@@ -28,7 +28,7 @@
     {
       "clientId": "web-app",
       "name": "Web application",
-      "description": "The SPA client. PUBLIC with Direct Access Grants: the BACKEND runs the password grant on the browser's behalf (/auth/login) — no secret exists.",
+      "description": "The SPA client. Public, Direct Access Grants: the backend runs the password grant (/auth/login) — no secret exists. Keycloak caps this field at 255 chars.",
       "enabled": true,
       "publicClient": true,
       "directAccessGrantsEnabled": true,
@@ -87,7 +87,7 @@
     {
       "clientId": "app-provisioning-service",
       "name": "Provisioning service account",
-      "description": "CONFIDENTIAL client whose service account the backend uses for boot-time realm ensure and server-side user lookups. The secret below is the LOCAL DEV value — a deployed realm regenerates it and grants the realm-management roles by hand (view-realm, view-users, manage-realm, manage-users).",
+      "description": "Confidential service account for boot-time realm ensure and server-side user lookups. The secret is the LOCAL DEV value — deployed realms regenerate it and grant view-realm, view-users, manage-realm, manage-users by hand.",
       "enabled": true,
       "publicClient": false,
       "secret": "dev-provisioning-secret",

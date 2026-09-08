@@ -10,7 +10,7 @@ WORKDIR /repo
 ENV HUSKY=0
 COPY package.json package-lock.json ./
 COPY frontend/package.json frontend/
-RUN npm ci --workspace=frontend --include-workspace-root=false --no-audit --no-fund
+RUN npm ci --workspace=frontend --include-workspace-root=false --ignore-scripts --no-audit --no-fund
 
 COPY frontend frontend
 
