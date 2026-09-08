@@ -13,6 +13,11 @@ import { healthRouter } from './routes/health.js'
 import { authRouter } from './routes/auth.js'
 import { kcadminRouter } from './routes/kcadmin.js'
 import { meRouter } from './routes/me.js'
+import { accountsRouter } from './routes/accounts.js'
+import { passwordSetupRouter } from './routes/passwordSetup.js'
+import { documentsRouter } from './routes/documents.js'
+import { buildDocsRouter } from './routes/docs.js'
+import { buildMfaRouter } from './mfa/index.js'
 
 export function buildApp(): express.Express {
   const app = express()
@@ -48,9 +53,25 @@ export function buildApp(): express.Express {
   // /auth sits BEFORE authenticate: login and session-lookup cannot demand
   // the session they exist to establish. Everything else requires it.
   api.use(authRouter)
+  // The WebAuthn second factor, likewise pre-authenticate: the ceremony runs
+  // BEFORE the sign-in is finished, and the one-time token is the credential.
+  // Under the base path on purpose — it rides the same ingress/edge door as
+  // the API, needing no nginx rewrite and no edge rule (src/mfa/index.ts).
+  api.use('/mfa', buildMfaRouter())
+  // The set-password link, likewise pre-authenticate: the person holding it
+  // has no session BECAUSE the account has no password yet, and the
+  // single-use token is the credential (src/routes/passwordSetup.ts).
+  api.use(passwordSetupRouter)
+  // API documentation, dev stacks only (API_DOCS_ENABLED, default off). Not
+  // mounted at all when off, so a deployed instance answers the ordinary
+  // problem+json 404. Pre-authenticate: the map of the API must not demand a
+  // session to read.
+  if (env.API_DOCS_ENABLED) api.use('/docs', buildDocsRouter())
   api.use(authenticate)
   api.use(kcadminRouter)
+  api.use(accountsRouter)
   api.use(meRouter)
+  api.use(documentsRouter)
 
   for (const basePath of env.basePaths) app.use(basePath, api)
 

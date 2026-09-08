@@ -17,6 +17,7 @@ import { Router, type Request, type Response } from 'express'
 import { badRequest, unauthorized } from '../http/problem.js'
 import { verifyToken } from '../middleware/auth.js'
 import { type KeycloakClaims } from '../auth/claims.js'
+import { clearSignInDevice, markSignInDevice } from '../mfa/deviceGuard.js'
 import {
   COOKIE_ACCESS,
   COOKIE_REFRESH,
@@ -46,6 +47,11 @@ authRouter.post('/auth/login', async (req: Request, res: Response) => {
   // for went through the same JWKS check every API call goes through.
   const claims = await verifyToken(payload.access_token)
   setSessionCookies(req, res, payload)
+  // MARK THIS BROWSER as the one that typed the password. The MFA approval
+  // page refuses any request carrying the mark, which is what stops the
+  // second factor being approved on the device it is meant to be separate
+  // from (src/mfa/deviceGuard.ts).
+  markSignInDevice(req, res)
   res.json(sessionBody(claims))
 })
 
@@ -76,6 +82,7 @@ authRouter.post('/auth/logout', async (req: Request, res: Response) => {
     await logoutGrant(cookies[COOKIE_REFRESH])
   }
   clearSessionCookies(req, res)
+  clearSignInDevice(req, res)
   res.status(204).end()
 })
 

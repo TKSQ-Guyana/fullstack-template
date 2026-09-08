@@ -13,6 +13,9 @@ const booleanish = z
 
 const schema = z.object({
   NODE_ENV: z.string().default('development'),
+  // The product's display name — mail subjects and bodies use it, so a fork
+  // rebrands every outbound message in one place.
+  APP_NAME: z.string().default('App Portal'),
   PORT: z.coerce.number().int().positive().default(8081),
   // Every base path serves the same API: /app/v1 for the frontend (proxied by
   // vite/nginx), /api/v1 for direct callers (Postman, smoke tests).
@@ -61,8 +64,6 @@ const schema = z.object({
   // even for vite development — the verify PAGE is only served where the
   // built MFA UI is (this container behind nginx), never by the app's vite.
   MFA_PUBLIC_URL: z.string().default('http://localhost:3000'),
-  // Signs the MFA flow's own short-lived token cookie.
-  MFA_JWT_SECRET: z.string().default('dev-only-secret-change-me'),
   // Where the built phone-facing UI lives (the Dockerfile puts it at ./mfa-ui).
   MFA_UI_DIR: z.string().default('mfa-ui'),
 
