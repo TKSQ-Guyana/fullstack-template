@@ -22,10 +22,23 @@ describe('GET /health', () => {
 })
 
 describe('unknown endpoints', () => {
-  it('answer RFC-7807 problem+json 404', async () => {
-    const res = await request(app).get('/app/v1/nowhere')
+  it('outside the API answer RFC-7807 problem+json 404', async () => {
+    const res = await request(app).get('/nowhere')
     expect(res.status).toBe(404)
     expect(res.headers['content-type']).toContain('application/problem+json')
     expect(res.body).toMatchObject({ title: 'Not Found', status: 404 })
+  })
+
+  it('inside the API meet authenticate first: 401 problem+json without a session', async () => {
+    const res = await request(app).get('/app/v1/nowhere')
+    expect(res.status).toBe(401)
+    expect(res.headers['content-type']).toContain('application/problem+json')
+  })
+})
+
+describe('GET /me', () => {
+  it('requires a session in enforce mode', async () => {
+    const res = await request(app).get('/api/v1/me')
+    expect(res.status).toBe(401)
   })
 })

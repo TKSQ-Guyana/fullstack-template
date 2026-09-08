@@ -5,5 +5,8 @@ export default {
   rules: {
     // Warn (not error) on long body lines so pasted URLs don't block a commit.
     'body-max-line-length': [1, 'always', 200],
+    // Subjects legitimately carry proper nouns (Keycloak, Docker, Postgres);
+    // sentence-case detection cannot tell those from shouting.
+    'subject-case': [0],
   },
 }

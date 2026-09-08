@@ -8,7 +8,11 @@ import { env } from './config/env.js'
 import { logger } from './logger.js'
 import { buildRateLimiter } from './middleware/rateLimit.js'
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
+import { authenticate } from './middleware/auth.js'
 import { healthRouter } from './routes/health.js'
+import { authRouter } from './routes/auth.js'
+import { kcadminRouter } from './routes/kcadmin.js'
+import { meRouter } from './routes/me.js'
 
 export function buildApp(): express.Express {
   const app = express()
@@ -41,6 +45,12 @@ export function buildApp(): express.Express {
   // The API surface, mounted at every configured base path
   // (/app/v1 for the frontend proxy, /api/v1 for direct callers).
   const api = express.Router()
+  // /auth sits BEFORE authenticate: login and session-lookup cannot demand
+  // the session they exist to establish. Everything else requires it.
+  api.use(authRouter)
+  api.use(authenticate)
+  api.use(kcadminRouter)
+  api.use(meRouter)
 
   for (const basePath of env.basePaths) app.use(basePath, api)
 
