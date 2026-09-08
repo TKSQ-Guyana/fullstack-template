@@ -52,14 +52,13 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      # The backend image builds the MFA phone UI from the mfa-ui workspace
-      # via a named build context (see backend/Dockerfile).
+      # Both images build FROM THE REPO ROOT: npm workspaces keep the one
+      # lockfile there, and the backend image also builds the mfa-ui workspace.
       - name: Build & push backend
         uses: docker/build-push-action@v6
         with:
-          context: ./backend
-          build-contexts: |
-            mfa-ui=./mfa-ui
+          context: .
+          file: backend/Dockerfile
           push: true
           tags: |
             ${{ vars.REGISTRY }}/${{ vars.IMAGE_PREFIX }}-backend:${{ steps.meta.outputs.tag }}
@@ -70,7 +69,8 @@ jobs:
       - name: Build & push frontend
         uses: docker/build-push-action@v6
         with:
-          context: ./frontend
+          context: .
+          file: frontend/Dockerfile
           push: true
           tags: |
             ${{ vars.REGISTRY }}/${{ vars.IMAGE_PREFIX }}-frontend:${{ steps.meta.outputs.tag }}
