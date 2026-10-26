@@ -165,6 +165,15 @@ smallest working set. CI runs the same gates as the pre-push hook, per
 workspace; `docker-release.yml` publishes images with registry/prefix from
 repo variables.
 
+**The log is not a trusted place** (`backend/src/logger.ts`). Request and
+response lines pass an ALLOWLIST (`httpSerializers`) rather than pino-http's
+default, which would print every header — and the session cookies carry live
+tokens. A handful of safe headers survive; the URL and the referer go through
+`sanitizeUrl`, which redacts the token segment of `/password-setup/:token`
+and `/mfa/login/status/:token`, secret query parameters (`token`, `code`, …)
+and search text. The logger itself also censors credential-shaped keys and
+masks an `email` key in our own `logger.info({...})` calls.
+
 ## 9. Known gaps
 
 - No E2E browser-test workspace (the reference project keeps Playwright in a

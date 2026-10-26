@@ -28,6 +28,7 @@
 import nodemailer, { type Transporter } from 'nodemailer'
 import { env } from '../../config/env.js'
 import { logger } from '../../logger.js'
+import { maskEmail } from '../../utils/mask.js'
 
 export interface MailResult {
   /** The relay accepted the message for delivery. */
@@ -52,20 +53,6 @@ export interface MailMessage {
 
 /** Is outbound email configured at all? */
 export const mailConfigured = (): boolean => env.MAIL_ENABLED && !!env.SMTP_HOST && !!env.mailFrom
-
-/**
- * `ada.admin@example.dev` -> `a•••••••••@example.dev`. The domain stays
- * because it is the part that helps when somebody asks why their mail did not
- * arrive; the local part does not.
- */
-export function maskEmail(address: string): string {
-  const trimmed = address.trim()
-  const at = trimmed.lastIndexOf('@')
-  if (at < 1) return '•'.repeat(Math.max(trimmed.length, 1))
-  const local = trimmed.slice(0, at)
-  const domain = trimmed.slice(at)
-  return `${local[0]}${'•'.repeat(Math.max(local.length - 1, 1))}${domain}`
-}
 
 /** Deliberately permissive — an address the relay accepts is not this app's
  *  to define. */

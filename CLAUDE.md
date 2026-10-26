@@ -29,6 +29,12 @@ here and say which spelling wins.>
   JSON only in `src/presenters`, outbound calls in `src/integrations`, thin
   `src/controllers`. A rule refuses by throwing a `DomainError`, whose
   sentence the frontend shows verbatim.
+- **No log line holds a secret or a person's data.** Request logs pass the
+  allowlist in `backend/src/logger.ts` (`httpSerializers`: no cookie, no
+  authorization, no set-cookie; URLs through `sanitizeUrl`). A route that puts
+  a secret in its path is added to `SECRET_PATH_PREFIXES`, a secret query
+  parameter to `SECRET_QUERY_PARAMS`; an email is masked at the call site
+  with `utils/mask.ts` (the logger masks an `email` key as the safety net).
 - **Postgres + backend are the ONLY data source.** No mock/seed data in the
   frontend; failure is loud — never fall back to fixtures when a call fails.
 - **Mail secret lives in `backend/.env.mail`** (gitignored) and nowhere else;

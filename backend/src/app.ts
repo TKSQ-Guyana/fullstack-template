@@ -5,7 +5,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import { pinoHttp } from 'pino-http'
 import { env } from './config/env.js'
-import { logger } from './logger.js'
+import { httpSerializers, logger } from './logger.js'
 import { buildRateLimiter } from './middleware/rateLimit.js'
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
 import { authenticate } from './middleware/auth.js'
@@ -40,6 +40,11 @@ export function buildApp(): express.Express {
   app.use(
     pinoHttp({
       logger,
+      // AN ALLOWLIST, NOT THE DEFAULT SERIALIZER. pino-http's default emits
+      // req.headers whole — and the session rides HttpOnly cookies, so every
+      // line would carry a live access token and its refresh token in plain
+      // text. See src/logger.ts for what survives and why.
+      serializers: httpSerializers,
       autoLogging: { ignore: (req) => req.url === '/health' },
       customLogLevel: (_req, res, err) =>
         err || res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info',

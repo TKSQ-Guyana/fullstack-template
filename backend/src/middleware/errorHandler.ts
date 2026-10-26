@@ -4,7 +4,7 @@
 import type { NextFunction, Request, Response } from 'express'
 import { DomainError } from '../domain/errors.js'
 import { ProblemError } from '../http/problem.js'
-import { logger } from '../logger.js'
+import { logger, sanitizeUrl } from '../logger.js'
 
 export interface PgError extends Error {
   code?: string
@@ -58,7 +58,8 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
         : (fromPgError(err as PgError) ?? internal(err))
 
   if (problem.status >= 500) {
-    logger.error({ err, path: req.path }, 'unhandled error')
+    // The path through the request log's own sanitising: a token can be a path segment.
+    logger.error({ err, path: sanitizeUrl(req.originalUrl ?? req.path) }, 'unhandled error')
   }
 
   res.status(problem.status).type('application/problem+json').json(problem.toBody())

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deliveryPolicy, looksLikeEmail, maskEmail, sendMail } from './mailer.js'
+import { deliveryPolicy, looksLikeEmail, sendMail } from './mailer.js'
 
 describe('the delivery wall', () => {
   it('is CLOSED by default — no redirect, no allowlist', () => {
@@ -14,10 +14,6 @@ describe('the delivery wall', () => {
 })
 
 describe('address helpers', () => {
-  it('masks the local part and keeps the domain', () => {
-    expect(maskEmail('ada.admin@example.dev')).toBe('a••••••••@example.dev')
-  })
-
   it('validates shapes permissively', () => {
     expect(looksLikeEmail('a@b.co')).toBe(true)
     expect(looksLikeEmail('not-an-address')).toBe(false)

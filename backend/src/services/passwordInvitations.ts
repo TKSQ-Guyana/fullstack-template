@@ -28,11 +28,12 @@ import { onTx } from '../db/kysely.js'
 import { withTransaction } from '../db/transaction.js'
 import { notFound, refused } from '../domain/errors.js'
 import { findUserById } from '../integrations/keycloak/serviceAccount.js'
-import { looksLikeEmail, mailConfigured, maskEmail, sendMail } from '../integrations/mail/mailer.js'
+import { looksLikeEmail, mailConfigured, sendMail } from '../integrations/mail/mailer.js'
 import { invitationMail } from '../integrations/mail/mailTemplates.js'
 import { logger } from '../logger.js'
 import { presentInvitations } from '../presenters/invitation.presenter.js'
 import * as invitations from '../repositories/invitations.repository.js'
+import { maskEmail } from '../utils/mask.js'
 
 export type InvitationPurpose = 'provision' | 'reset'
 
