@@ -9,7 +9,7 @@ comment that explains why it exists.
 
 | Piece         | Choice                                                                    |
 | ------------- | ------------------------------------------------------------------------- |
-| **backend/**  | Node 20+ · Express 5 · TypeScript · Postgres (thin routes → `app.api_*` SQL functions) |
+| **backend/**  | Node 20+ · Express 5 · TypeScript · Postgres · Kysely — layered MVC (controllers → services → domain + repositories → presenters) |
 | **frontend/** | React 18 · Vite 7 · TypeScript · Tailwind v4 tokens · Zustand              |
 | **mfa-ui/**   | The phone-facing WebAuthn pages, built into the backend image              |
 | **Identity**  | Keycloak — the backend runs the password grant and holds the session in HttpOnly cookies; the browser never sees a token |
@@ -47,16 +47,20 @@ Demo accounts (seeded by `keycloak-local/setup-dev.mjs` on every `up`):
 demonstrated rather than described. Follow it end to end, then delete or
 rename it:
 
-1. `backend/migrations/0002_notes.sql` — the table AND the contract
-   (`app.api_notes_*` returning camelCase JSONB; business rules as
-   `RAISE EXCEPTION` → 422 problem+json)
-2. `backend/src/services/notes.ts` — one `callApi()` wrapper per operation
-3. `backend/src/routes/notes.ts` — RBAC gate → validate → service → answer
-4. `backend/src/docs/openapi.yaml` + `docs/postman/` — the maintained pair
-5. `frontend/src/services/api/notes.ts` — the typed client
-6. `frontend/src/hooks/useNotes.ts` — the list-hook contract
-7. `frontend/src/pages/notes/` — `<Can>`-gated writes, confirm on delete
-8. `frontend/src/routes/manifest.tsx` — the route + nav entry
+1. `backend/migrations/0002_notes.sql` — the table, its constraints and its
+   audit-stamp trigger (schema and integrity only), then `npm run db:types`
+2. `backend/src/domain/notes.ts` — the rules, pure and unit-tested beside it
+   (a refusal is a `DomainError` → 422 problem+json, sentence verbatim)
+3. `backend/src/repositories/notes.repository.ts` — the SQL, and nothing else
+4. `backend/src/presenters/note.presenter.ts` — the row → the contract JSON
+5. `backend/src/services/notes.ts` — each use-case in one transaction
+6. `backend/src/controllers/notes.controller.ts` — RBAC gate → shape check →
+   one service call → answer
+7. `backend/src/docs/openapi.yaml` + `docs/postman/` — the maintained pair
+8. `frontend/src/services/api/notes.ts` — the typed client
+9. `frontend/src/hooks/useNotes.ts` — the list-hook contract
+10. `frontend/src/pages/notes/` — `<Can>`-gated writes, confirm on delete
+11. `frontend/src/routes/manifest.tsx` — the route + nav entry
 
 ## Fork checklist
 
@@ -67,7 +71,8 @@ rename it:
    `backend/src/auth/claims.ts` + `backend/src/auth/permissions.ts`,
    `frontend/src/auth/claims.ts` + `frontend/src/authz/policy.ts` —
    and the realm roles in `backend/scripts/kc-realm-structure.mjs`.
-4. Replace the notes example with your first real entity (same eight files).
+4. Replace the notes example with your first real entity (the same files,
+   layer by layer).
 5. Configure CI: repo variables `REGISTRY`, `IMAGE_PREFIX`; secrets
    `REGISTRY_USERNAME`, `REGISTRY_PASSWORD` (`.github/workflows/docker-release.yml`).
 6. For deployment, read `docs/DEPLOYMENT-ENV.md` — the smallest working set

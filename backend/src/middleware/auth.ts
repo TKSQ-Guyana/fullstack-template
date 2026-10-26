@@ -18,7 +18,7 @@ import {
   type KeycloakClaims,
   type Principal,
 } from '../auth/claims.js'
-import { COOKIE_ACCESS, cookiesOf } from '../services/kcSession.js'
+import { COOKIE_ACCESS, cookiesOf } from '../integrations/keycloak/session.js'
 
 declare module 'express-serve-static-core' {
   interface Request {

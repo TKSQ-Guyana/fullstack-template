@@ -2,6 +2,7 @@
 // problem+json; Postgres errors are translated to the statuses the contract
 // promises instead of leaking as 500s with constraint names in them.
 import type { NextFunction, Request, Response } from 'express'
+import { DomainError } from '../domain/errors.js'
 import { ProblemError } from '../http/problem.js'
 import { logger } from '../logger.js'
 
@@ -28,7 +29,7 @@ export function fromPgError(err: PgError): ProblemError | null {
       return new ProblemError(400, err.message)
     case '22P02': // invalid_text_representation — bad enum/uuid/number in the body
       return new ProblemError(400, `A field has an invalid value: ${err.message}`)
-    case 'P0001': // raise_exception — business rules raised inside api_* functions
+    case 'P0001': // raise_exception — an integrity guard in SQL (e.g. app.config_audit append-only)
       return new ProblemError(422, err.message)
     default:
       return null
@@ -48,7 +49,13 @@ export function notFoundHandler(req: Request, res: Response): void {
 }
 
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
-  const problem = err instanceof ProblemError ? err : (fromPgError(err as PgError) ?? internal(err))
+  const problem =
+    err instanceof ProblemError
+      ? err
+      : err instanceof DomainError
+        ? // A rule said no (domain/errors.ts): its status, its sentence verbatim.
+          new ProblemError(err.status, err.message)
+        : (fromPgError(err as PgError) ?? internal(err))
 
   if (problem.status >= 500) {
     logger.error({ err, path: req.path }, 'unhandled error')

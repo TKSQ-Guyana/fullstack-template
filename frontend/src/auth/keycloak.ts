@@ -1,7 +1,7 @@
 // The session, as the browser sees it — WHICH IS NOT A TOKEN.
 //
 // The whole Keycloak conversation lives in the backend (/auth/* — see
-// backend/src/routes/auth.ts): the sign-in form posts credentials to
+// backend/src/controllers/auth.controller.ts): the sign-in form posts credentials to
 // /auth/login, the backend runs the password grant, and the session comes
 // back as HTTPONLY COOKIES this script cannot read. What this module holds is
 // only what the backend's answers vouch for — the VERIFIED CLAIMS of the

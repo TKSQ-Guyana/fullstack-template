@@ -9,15 +9,16 @@ import { logger } from './logger.js'
 import { buildRateLimiter } from './middleware/rateLimit.js'
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
 import { authenticate } from './middleware/auth.js'
-import { healthRouter } from './routes/health.js'
-import { authRouter } from './routes/auth.js'
-import { kcadminRouter } from './routes/kcadmin.js'
-import { meRouter } from './routes/me.js'
-import { accountsRouter } from './routes/accounts.js'
-import { passwordSetupRouter } from './routes/passwordSetup.js'
-import { documentsRouter } from './routes/documents.js'
-import { notesRouter } from './routes/notes.js'
-import { buildDocsRouter } from './routes/docs.js'
+import { actorContext } from './db/actorContext.js'
+import { healthRouter } from './controllers/health.controller.js'
+import { authRouter } from './controllers/auth.controller.js'
+import { kcadminRouter } from './controllers/kcadmin.controller.js'
+import { meRouter } from './controllers/me.controller.js'
+import { accountsRouter } from './controllers/accounts.controller.js'
+import { passwordSetupRouter } from './controllers/passwordSetup.controller.js'
+import { documentsRouter } from './controllers/documents.controller.js'
+import { notesRouter } from './controllers/notes.controller.js'
+import { buildDocsRouter } from './controllers/docs.controller.js'
 import { buildMfaRouter } from './mfa/index.js'
 
 export function buildApp(): express.Express {
@@ -61,7 +62,7 @@ export function buildApp(): express.Express {
   api.use('/mfa', buildMfaRouter())
   // The set-password link, likewise pre-authenticate: the person holding it
   // has no session BECAUSE the account has no password yet, and the
-  // single-use token is the credential (src/routes/passwordSetup.ts).
+  // single-use token is the credential (src/controllers/passwordSetup.controller.ts).
   api.use(passwordSetupRouter)
   // API documentation, dev stacks only (API_DOCS_ENABLED, default off). Not
   // mounted at all when off, so a deployed instance answers the ordinary
@@ -69,6 +70,9 @@ export function buildApp(): express.Express {
   // session to read.
   if (env.API_DOCS_ENABLED) api.use('/docs', buildDocsRouter())
   api.use(authenticate)
+  // Everything behind authenticate acts as the signed-in username — the
+  // identity the audit columns record (db/actorContext.ts).
+  api.use(actorContext)
   api.use(kcadminRouter)
   api.use(accountsRouter)
   api.use(meRouter)

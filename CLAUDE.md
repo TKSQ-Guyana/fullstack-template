@@ -20,7 +20,15 @@ here and say which spelling wins.>
   lineage as one psql file. Any new migration regenerates it
   (`node backend/scripts/build-single-migration.mjs`) and commits it.
 - **Migrations are the only schema channel.** Add new numbered files with
-  paired `.down.sql`; never edit one that has been applied anywhere.
+  paired `.down.sql`; never edit one that has been applied anywhere. A schema
+  change also runs `npm run db:types` (backend) and commits the regenerated
+  `src/db/schema.generated.ts` in the same commit.
+- **Keep the backend's layers** (MVC; eslint's boundaries rule enforces the
+  imports): rules in `src/domain` (pure, unit-tested beside them), use-cases
+  in `src/services` (one transaction each), SQL only in `src/repositories`,
+  JSON only in `src/presenters`, outbound calls in `src/integrations`, thin
+  `src/controllers`. A rule refuses by throwing a `DomainError`, whose
+  sentence the frontend shows verbatim.
 - **Postgres + backend are the ONLY data source.** No mock/seed data in the
   frontend; failure is loud — never fall back to fixtures when a call fails.
 - **Mail secret lives in `backend/.env.mail`** (gitignored) and nowhere else;
@@ -39,8 +47,16 @@ here and say which spelling wins.>
 ## Architecture
 
 `backend/` (Node 20+/Express 5/TS) serves `/app/v1` (frontend, via
-vite/nginx proxy) and `/api/v1` (Postman), calling `app.api_*` SQL functions
-(`callApi` in `src/db/pool.ts`). Errors are RFC-7807 problem+json throughout.
+vite/nginx proxy) and `/api/v1` (Postman). It is layered MVC
+(`docs/ARCHITECTURE.md` §3.2): `controllers/*.controller.ts` (HTTP: parse,
+authorise, call, answer) → `services/` (use-cases, one `withTransaction`
+each) → `domain/` (pure rules, `DomainError`) + `repositories/*.repository.ts`
+(Kysely, types generated from the database) → `presenters/*.presenter.ts`
+(the JSON). `integrations/{keycloak,mail,sms,mayan}` hold everything
+outbound. Postgres keeps schema and integrity only — the audit stamps
+(`app.fn_stamp_audit_fields`, fed `app.actor` by `db/transaction.ts`), the
+constraints, the append-only guards. Errors are RFC-7807 problem+json
+throughout.
 
 - **Auth is server-side**: the browser holds NO tokens. `POST /auth/login`
   runs the Keycloak password grant and sets HttpOnly SameSite=Strict cookies;
@@ -75,5 +91,7 @@ nginx frontend :3000, Mailpit :8025. Mayan :8888 only with `--profile dms`
 
 Backend change: `docker compose -f docker-compose.dev.yml up -d --build backend`
 then check `/health`. Frontend: vite hot-reloads. Gates (each workspace):
-`npm run lint && npm run typecheck && npm run test && npm run build`.
+`npm run lint && npm run typecheck && npm run test && npm run build`. A
+repository or migration change also runs `npm run test:db` (backend; against
+the stack's Postgres, each test rolled back) and `npm run db:types:check`.
 Avoid `backend/scripts/smoke.mjs` casually — it writes test data.

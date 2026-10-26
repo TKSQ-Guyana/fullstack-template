@@ -21,9 +21,9 @@
 // extends this by carrying a third cookie naming which client the refresh
 // token is bound to — a refresh presented to the wrong client is refused.
 import type { Request, Response } from 'express'
-import { env } from '../config/env.js'
-import { logger } from '../logger.js'
-import { ProblemError, unauthorized } from '../http/problem.js'
+import { env } from '../../config/env.js'
+import { logger } from '../../logger.js'
+import { ProblemError, unauthorized } from '../../http/problem.js'
 
 export const COOKIE_ACCESS = 'app_access'
 export const COOKIE_REFRESH = 'app_refresh'

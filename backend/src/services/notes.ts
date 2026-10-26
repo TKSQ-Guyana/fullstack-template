@@ -1,48 +1,50 @@
-// The notes example's data access — the thin chain in full: one callApi()
-// wrapper per operation, no SQL here, no shaping here. The app.api_notes_*
-// functions (migration 0002) own the contract.
-import { callApi } from '../db/pool.js'
+// Notes — the example's use-cases, and the service pattern to copy: apply the
+// domain's rules, run the repository calls in ONE transaction (or one read
+// snapshot), answer with the presenter's JSON. A missing note is a
+// DomainError here, so the controller never inspects a result to decide its
+// status.
+import { onTx } from '../db/kysely.js'
+import { withReadSnapshot, withTransaction } from '../db/transaction.js'
+import { newNote, noteNotFound, notePage, notePatch } from '../domain/notes.js'
+import { presentNote, presentNoteList } from '../presenters/note.presenter.js'
+import * as notes from '../repositories/notes.repository.js'
 
-export interface Note {
-  noteId: string
-  title: string
-  body: string
-  tags: string[]
-  createdBy: string
-  createdAt: string
-  updatedBy: string | null
-  updatedAt: string | null
+/** A page of notes and the whole list's size — both read from one snapshot,
+ *  so the total always describes the rows beside it. */
+export function listNotes(opts: { q?: string; limit?: number; offset?: number }) {
+  const q = opts.q || null
+  const page = notePage(opts.limit, opts.offset)
+  return withReadSnapshot(async (tx) => {
+    const k = onTx(tx)
+    const total = await notes.count(q, k)
+    const rows = await notes.page(q, page, k)
+    return presentNoteList(rows, total)
+  })
 }
 
-export interface NoteList {
-  items: Note[]
-  total: number
+export async function getNote(noteId: string) {
+  const row = await notes.findById(noteId)
+  if (!row) throw noteNotFound()
+  return presentNote(row)
 }
 
-export function listNotes(q: string | undefined, limit: number, offset: number) {
-  return callApi<NoteList>('app.api_notes_list', [q ?? null, limit, offset])
+export async function createNote(input: { title: string; body?: string; tags?: string[] }) {
+  const note = newNote(input)
+  const row = await withTransaction((tx) => notes.insert(note, onTx(tx)))
+  return presentNote(row)
 }
 
-export function getNote(noteId: string) {
-  return callApi<Note>('app.api_notes_get', [noteId])
-}
-
-export function createNote(input: {
-  title: string
-  body?: string
-  tags?: string[]
-  actor: string
-}) {
-  return callApi<Note>('app.api_notes_create', [JSON.stringify(input)])
-}
-
-export function updateNote(
+export async function updateNote(
   noteId: string,
-  patch: { title?: string; body?: string; tags?: string[]; actor: string },
+  input: { title?: string; body?: string; tags?: string[] },
 ) {
-  return callApi<Note>('app.api_notes_update', [noteId, JSON.stringify(patch)])
+  const patch = notePatch(input)
+  const row = await withTransaction((tx) => notes.update(noteId, patch, onTx(tx)))
+  if (!row) throw noteNotFound()
+  return presentNote(row)
 }
 
-export function deleteNote(noteId: string) {
-  return callApi<{ deleted: boolean }>('app.api_notes_delete', [noteId])
+export async function deleteNote(noteId: string): Promise<void> {
+  const deleted = await withTransaction((tx) => notes.remove(noteId, onTx(tx)))
+  if (!deleted) throw noteNotFound()
 }

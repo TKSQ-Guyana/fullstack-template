@@ -10,9 +10,10 @@
 //   accountLabel() what the phone's passkey dialog calls this account.
 //
 // Both come from Keycloak through the service account (see
-// ../services/kcServiceAccount.ts), and both answer null on any failure. Null
-// is a supported state, not an error: no phone means the screen falls back to
-// the copy link, and no email means the dialog shows the username as before.
+// ../integrations/keycloak/serviceAccount.ts), and both answer null on any
+// failure. Null is a supported state, not an error: no phone means the screen
+// falls back to the copy link, and no email means the dialog shows the
+// username as before.
 //
 // Cached briefly. These are read on every challenge, they change when an
 // administrator edits the account, and a minute of staleness costs nothing
@@ -23,8 +24,8 @@ import {
   findUser,
   serviceAccountConfigured,
   type KeycloakUser,
-} from '../services/kcServiceAccount.js'
-import { toE164 } from '../services/sms.js'
+} from '../integrations/keycloak/serviceAccount.js'
+import { toE164 } from '../integrations/sms/sms.js'
 
 const TTL_MS = 60_000
 

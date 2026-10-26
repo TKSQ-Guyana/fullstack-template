@@ -20,12 +20,13 @@
 import { Router, type Request, type Response } from 'express'
 import rateLimit from 'express-rate-limit'
 import { ProblemError, badRequest } from '../http/problem.js'
+import { resetUserPassword } from '../integrations/keycloak/serviceAccount.js'
+import { presentLinkCheck } from '../presenters/invitation.presenter.js'
 import {
   claimInvitation,
   describeInvitation,
   releaseInvitation,
 } from '../services/passwordInvitations.js'
-import { resetUserPassword } from '../services/kcServiceAccount.js'
 import { logger } from '../logger.js'
 
 export const passwordSetupRouter = Router()
@@ -77,11 +78,7 @@ passwordSetupRouter.get('/password-setup/:token', async (req: Request, res: Resp
     res.status(410).json({ valid: false, detail: GONE })
     return
   }
-  res.json({
-    valid: true,
-    username: invitation.username,
-    expiresAt: invitation.expiresAt.toISOString(),
-  })
+  res.json(presentLinkCheck(invitation))
 })
 
 /**

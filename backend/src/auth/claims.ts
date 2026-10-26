@@ -38,7 +38,7 @@ export interface Principal {
   realmRoles: string[]
   /** All personas this token maps to, in precedence order. */
   personas: Persona[]
-  /** The persona passed to the app.api_* functions (single-role contract). */
+  /** The single persona a use-case is scoped by — the first of `personas`. */
   role: Persona
   tenantId: string | null
   tenantName: string | null

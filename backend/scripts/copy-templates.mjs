@@ -4,8 +4,9 @@
 // tsc emits .ts and nothing else, so a build without this step produces a
 // dist/ whose emailTemplates.js reads a directory that is not there — and the
 // failure surfaces at the first send, in production, as "no runtime email
-// template". The same applies to routes/docs.js and dist/docs/openapi.yaml,
-// except that one fails loud at boot (and only when API_DOCS_ENABLED). Part
+// template". The same applies to controllers/docs.controller.js and
+// dist/docs/openapi.yaml, except that one fails loud at boot (and only when
+// API_DOCS_ENABLED). Part
 // of `npm run build` rather than a Dockerfile line so that EVERY build
 // produces a complete dist: the image, the pre-push check, and anybody
 // running `node dist/index.js` locally.

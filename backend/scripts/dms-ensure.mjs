@@ -27,7 +27,7 @@ if (!base || !username || !password) {
 
 if ((process.env.DMS_TLS_INSECURE || '').toLowerCase() === 'true') {
   // Node's global toggle is acceptable here: this SCRIPT talks to exactly one
-  // host. The app itself scopes the exemption per-client (src/services/dms.ts).
+  // host. The app itself scopes the exemption per-client (src/integrations/mayan/dms.ts).
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 }
 

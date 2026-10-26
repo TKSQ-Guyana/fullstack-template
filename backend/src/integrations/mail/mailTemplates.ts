@@ -17,7 +17,7 @@
 // subset of CSS from 1999 and Gmail strips <style> in some clients. Colours
 // are literal hex, deliberately — there is no theme to read here, and a mail
 // client in dark mode inverts what it likes regardless of what we ask for.
-import { env } from '../config/env.js'
+import { env } from '../../config/env.js'
 
 const INK = '#131C2E'
 const MUTED = '#5A6472'

@@ -48,7 +48,7 @@ services:
       SMS_PASSWORD: ${SMS_PASSWORD:-}
       # Mail: closed by default even with a relay — every environment states
       # its policy (MAIL_REDIRECT_TO for QA/UAT, an allowlist or '*' for
-      # production). See backend/src/services/mailer.ts.
+      # production). See backend/src/integrations/mail/mailer.ts.
       MAIL_ENABLED: ${MAIL_ENABLED:-false}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}

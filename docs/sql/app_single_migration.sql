@@ -26,13 +26,52 @@ BEGIN;
 -- Conventions this lineage follows (see docs/ARCHITECTURE.md):
 --   * Migrations are the ONLY schema channel. Add new numbered files; never
 --     edit one that has been applied anywhere.
---   * Business logic lives in app.api_* SQL functions returning JSONB shaped
---     as the contract's camelCase — routes stay thin (src/db/pool.ts callApi).
+--   * PostgreSQL keeps SCHEMA AND INTEGRITY — tables, constraints, indexes,
+--     the audit stamps, append-only guards. Business RULES live in TypeScript
+--     (backend/src/domain), SQL in the repositories, JSON in the presenters;
+--     no function here shapes an API response.
 --   * Every migration has a paired .down.sql.
 
 CREATE SCHEMA IF NOT EXISTS app;
 
 SET search_path = app, public;
+
+-- ============================================================================
+-- 0. AUDIT STAMPS (who and when, filled by the database, not by callers)
+--
+-- withTransaction (src/db/transaction.ts) publishes the signed-in username as
+-- the per-transaction setting `app.actor`; this trigger reads it, so every
+-- row a use-case writes is stamped without a repository passing an actor
+-- around. Attach it to any table carrying created_by / created_at /
+-- updated_by / updated_at:
+--
+--   CREATE TRIGGER trg_<table>_audit_stamp BEFORE INSERT OR UPDATE ON app.<table>
+--       FOR EACH ROW EXECUTE FUNCTION app.fn_stamp_audit_fields();
+--
+-- Give created_by a DEFAULT 'system' so an INSERT need not name it (the
+-- repositories never do). The published actor wins over any value the row
+-- arrives with — the setting is the verified token's word; outside a
+-- transaction that published one (a psql session, a script) the column's
+-- own value stands. updated_* stay NULL until the first UPDATE, so "never
+-- changed" is visible.
+-- ============================================================================
+CREATE OR REPLACE FUNCTION app.fn_stamp_audit_fields()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+    v_actor TEXT := NULLIF(current_setting('app.actor', true), '');
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        NEW.created_at := COALESCE(NEW.created_at, now());
+        NEW.created_by := COALESCE(v_actor, NEW.created_by, 'system');
+    ELSE
+        -- History is immutable: an UPDATE may not rewrite who created what.
+        NEW.created_at := OLD.created_at;
+        NEW.created_by := OLD.created_by;
+        NEW.updated_at := now();
+        NEW.updated_by := COALESCE(v_actor, 'system');
+    END IF;
+    RETURN NEW;
+END $$;
 
 -- ============================================================================
 -- 1. CONFIG (config-not-code: operational dials live in rows, not images)
@@ -121,7 +160,8 @@ CREATE TABLE app.mfa_registration_challenges (
 );
 
 -- ============================================================================
--- 4. PASSWORD INVITATIONS (src/services/passwordInvitations.ts)
+-- 4. PASSWORD INVITATIONS (src/services/passwordInvitations.ts; the SQL in
+--    src/repositories/invitations.repository.ts)
 --
 -- Accounts are provisioned with no password; a single-use link, mailed to the
 -- address on the account, is the only way to set one. THE TOKEN NEVER LANDS
@@ -156,35 +196,6 @@ CREATE INDEX idx_password_invitations_user
 CREATE INDEX idx_password_invitations_expires
     ON app.password_invitations (expires_at);
 
--- One row per account — the most recent invitation, whatever became of it —
--- with the usable-state verdict derived HERE so the browser cannot disagree
--- with the server about whether a link still works.
-CREATE OR REPLACE FUNCTION app.api_password_invitations()
-RETURNS JSONB LANGUAGE sql AS $$
-    SELECT COALESCE(jsonb_agg(row), '[]'::jsonb)
-    FROM (
-        SELECT DISTINCT ON (kc_user_id) jsonb_build_object(
-            'kcUserId',  kc_user_id,
-            'username',  username,
-            'email',     email,
-            'purpose',   purpose,
-            'createdBy', created_by,
-            'createdAt', created_at,
-            'expiresAt', expires_at,
-            'usedAt',    used_at,
-            'mailed',    mailed,
-            'state',     CASE
-                             WHEN used_at IS NOT NULL      THEN 'set'
-                             WHEN expires_at <= now()      THEN 'expired'
-                             WHEN NOT mailed               THEN 'not_sent'
-                             ELSE                               'invited'
-                         END
-        ) AS row
-        FROM app.password_invitations
-        ORDER BY kc_user_id, created_at DESC
-    ) latest;
-$$;
-
 COMMENT ON TABLE app.password_invitations IS
     'Single-use set-password links. Stores the token hash only; the token exists in the email.';
 
@@ -198,22 +209,30 @@ COMMENT ON TABLE app.password_invitations IS
 -- start your fork from 0001) or rename everything to your first real entity.
 -- The pattern it demonstrates:
 --
---   * The table owns its data; the api_* functions own the CONTRACT — they
---     return JSONB shaped as the API's camelCase, so routes stay thin
---     (src/services/notes.ts is a callApi() wrapper per operation).
---   * Business rules live HERE (RAISE EXCEPTION -> 422 via the error
---     handler's P0001 mapping), not in Express.
---   * Writes stamp who and when; the route passes the verified principal's
---     username as p_actor.
+--   * The migration owns the SCHEMA and its INTEGRITY: the table, the
+--     constraints that hold whatever any code does, the indexes, the audit
+--     stamp. Nothing here shapes the API's JSON or decides a business rule.
+--   * The rules live in TypeScript (src/domain/notes.ts), the SQL in
+--     src/repositories/notes.repository.ts, the JSON in
+--     src/presenters/note.presenter.ts; src/services/notes.ts runs each
+--     use-case in one transaction, and src/controllers/notes.controller.ts
+--     is the thin HTTP adapter.
+--   * created_by / updated_by are stamped by app.fn_stamp_audit_fields
+--     (0001) from the per-transaction `app.actor` the service publishes —
+--     no repository passes an actor.
+--   * After changing this file's lineage: `npm run db:types` regenerates
+--     src/db/schema.generated.ts, in the same commit.
 
 SET search_path = app, public;
 
 CREATE TABLE app.notes (
     note_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- The domain refuses a blank title first, with its own sentence; the
+    -- CHECK is the floor that holds for every other writer.
     title      TEXT NOT NULL CHECK (length(trim(title)) > 0),
     body       TEXT NOT NULL DEFAULT '',
     tags       TEXT[] NOT NULL DEFAULT '{}',
-    created_by TEXT NOT NULL,
+    created_by TEXT NOT NULL DEFAULT 'system',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_by TEXT,
     updated_at TIMESTAMPTZ
@@ -221,105 +240,9 @@ CREATE TABLE app.notes (
 
 CREATE INDEX idx_notes_created ON app.notes (created_at DESC);
 
--- One row -> the contract's camelCase shape, defined once and reused by
--- every function below so list and detail can never disagree.
-CREATE OR REPLACE FUNCTION app.note_json(n app.notes)
-RETURNS JSONB LANGUAGE sql IMMUTABLE AS $$
-    SELECT jsonb_build_object(
-        'noteId',    n.note_id,
-        'title',     n.title,
-        'body',      n.body,
-        'tags',      to_jsonb(n.tags),
-        'createdBy', n.created_by,
-        'createdAt', n.created_at,
-        'updatedBy', n.updated_by,
-        'updatedAt', n.updated_at
-    );
-$$;
-
--- List with optional search + paging. Returns {items, total} so the client
--- can page without a second count query.
-CREATE OR REPLACE FUNCTION app.api_notes_list(p_q TEXT, p_limit INT, p_offset INT)
-RETURNS JSONB LANGUAGE sql STABLE AS $$
-    WITH filtered AS (
-        SELECT n.* FROM app.notes n
-        WHERE p_q IS NULL OR p_q = ''
-           OR n.title ILIKE '%' || p_q || '%'
-           OR n.body  ILIKE '%' || p_q || '%'
-        ORDER BY n.created_at DESC
-    ),
-    page AS (
-        SELECT * FROM filtered
-        LIMIT  COALESCE(NULLIF(p_limit, 0), 50)
-        OFFSET COALESCE(p_offset, 0)
-    )
-    SELECT jsonb_build_object(
-        'items', COALESCE((SELECT jsonb_agg(app.note_json(page.*)) FROM page), '[]'::jsonb),
-        'total', (SELECT count(*) FROM filtered)
-    );
-$$;
-
-CREATE OR REPLACE FUNCTION app.api_notes_get(p_note_id UUID)
-RETURNS JSONB LANGUAGE sql STABLE AS $$
-    SELECT app.note_json(n.*) FROM app.notes n WHERE n.note_id = p_note_id;
-$$;
-
-CREATE OR REPLACE FUNCTION app.api_notes_create(p JSONB)
-RETURNS JSONB LANGUAGE plpgsql AS $$
-DECLARE
-    created app.notes;
-BEGIN
-    IF length(trim(COALESCE(p->>'title', ''))) = 0 THEN
-        RAISE EXCEPTION 'A note needs a title.';
-    END IF;
-    INSERT INTO app.notes (title, body, tags, created_by)
-    VALUES (
-        trim(p->>'title'),
-        COALESCE(p->>'body', ''),
-        COALESCE((SELECT array_agg(t) FROM jsonb_array_elements_text(p->'tags') AS t), '{}'),
-        COALESCE(p->>'actor', 'unknown')
-    )
-    RETURNING * INTO created;
-    RETURN app.note_json(created);
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION app.api_notes_update(p_note_id UUID, p JSONB)
-RETURNS JSONB LANGUAGE plpgsql AS $$
-DECLARE
-    updated app.notes;
-BEGIN
-    UPDATE app.notes SET
-        title      = CASE WHEN p ? 'title' THEN trim(p->>'title') ELSE title END,
-        body       = CASE WHEN p ? 'body'  THEN p->>'body'        ELSE body  END,
-        tags       = CASE WHEN p ? 'tags'
-                          THEN COALESCE((SELECT array_agg(t)
-                                           FROM jsonb_array_elements_text(p->'tags') AS t), '{}')
-                          ELSE tags END,
-        updated_by = COALESCE(p->>'actor', 'unknown'),
-        updated_at = now()
-    WHERE note_id = p_note_id
-    RETURNING * INTO updated;
-    IF NOT FOUND THEN
-        RETURN NULL;  -- the route answers 404
-    END IF;
-    IF length(trim(updated.title)) = 0 THEN
-        RAISE EXCEPTION 'A note needs a title.';
-    END IF;
-    RETURN app.note_json(updated);
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION app.api_notes_delete(p_note_id UUID)
-RETURNS JSONB LANGUAGE plpgsql AS $$
-DECLARE
-    n INT;
-BEGIN
-    DELETE FROM app.notes WHERE note_id = p_note_id;
-    GET DIAGNOSTICS n = ROW_COUNT;
-    RETURN jsonb_build_object('deleted', n > 0);
-END;
-$$;
+CREATE TRIGGER trg_notes_audit_stamp
+    BEFORE INSERT OR UPDATE ON app.notes
+    FOR EACH ROW EXECUTE FUNCTION app.fn_stamp_audit_fields();
 
 -- ============================================================================
 -- migration bookkeeping — mark the whole lineage applied

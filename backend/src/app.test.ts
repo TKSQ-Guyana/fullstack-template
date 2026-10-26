@@ -2,8 +2,8 @@
 // uses (src/app.ts exports the app without listening for exactly this).
 import { afterAll, describe, expect, it } from 'vitest'
 import request from 'supertest'
-import { buildApp } from '../src/app.js'
-import { pool } from '../src/db/pool.js'
+import { buildApp } from './app.js'
+import { pool } from './db/pool.js'
 
 const app = buildApp()
 

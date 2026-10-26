@@ -15,8 +15,8 @@
 // 202 Accepted with an id and a per-recipient state. Delivery is asynchronous
 // and 202 means QUEUED, not delivered — so a true result here says "handed to
 // the gateway", which is all this module can honestly claim.
-import { env } from '../config/env.js'
-import { logger } from '../logger.js'
+import { env } from '../../config/env.js'
+import { logger } from '../../logger.js'
 
 export interface SmsResult {
   /** The gateway accepted the message for delivery (HTTP 202). */

@@ -6,7 +6,7 @@ import { logger } from './logger.js'
 import { pool } from './db/pool.js'
 import { connectRedis, redis } from './redis/client.js'
 import { attachWebSocketServer, stopMfaListener } from './mfa/index.js'
-import { closeMailer, verifyMailer } from './services/mailer.js'
+import { closeMailer, verifyMailer } from './integrations/mail/mailer.js'
 
 await connectRedis()
 

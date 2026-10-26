@@ -26,8 +26,8 @@
 // 500 recipients a day. Deployment should point at the organisation's own
 // relay; that is one env change and no code.
 import nodemailer, { type Transporter } from 'nodemailer'
-import { env } from '../config/env.js'
-import { logger } from '../logger.js'
+import { env } from '../../config/env.js'
+import { logger } from '../../logger.js'
 
 export interface MailResult {
   /** The relay accepted the message for delivery. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { personasFrom, principalFromClaims, rolesFrom } from '../src/auth/claims.js'
-import { permissionsFor } from '../src/auth/permissions.js'
+import { personasFrom, principalFromClaims, rolesFrom } from './claims.js'
+import { permissionsFor } from './permissions.js'
 
 describe('claims mapping', () => {
   it('prefers app_roles over realm_access.roles', () => {

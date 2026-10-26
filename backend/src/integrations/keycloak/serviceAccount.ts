@@ -14,8 +14,8 @@
 //
 // NO SECRET, NO LOOKUP — and that is a supported state, not a failure: every
 // function answers null / a refusal object rather than throwing.
-import { env } from '../config/env.js'
-import { logger } from '../logger.js'
+import { env } from '../../config/env.js'
+import { logger } from '../../logger.js'
 
 interface TokenState {
   accessToken: string

@@ -6,9 +6,9 @@
 // That makes the store an add-on, not a prerequisite — an environment without
 // Mayan still runs everything else.
 import { Agent, fetch as undiciFetch, FormData as UndiciFormData } from 'undici'
-import { env } from '../config/env.js'
-import { logger } from '../logger.js'
-import { ProblemError } from '../http/problem.js'
+import { env } from '../../config/env.js'
+import { logger } from '../../logger.js'
+import { ProblemError } from '../../http/problem.js'
 
 // A Mayan behind an internal CA this process does not trust: DMS_TLS_INSECURE
 // scopes the exemption to THIS client only — Keycloak/JWKS and everything
@@ -34,7 +34,7 @@ export function dmsForm(): FormData {
   return new UndiciFormData() as unknown as FormData
 }
 
-interface UploadInput {
+export interface UploadInput {
   buffer: Buffer
   filename: string
   mimetype: string

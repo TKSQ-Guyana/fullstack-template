@@ -17,9 +17,9 @@ import swaggerUiDist from 'swagger-ui-dist'
 import { parse } from 'yaml'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-// src/routes -> src/docs when tsx runs the sources; dist/routes -> dist/docs
-// in a build (copy-templates.mjs lifts src/docs there) — the same relative
-// resolution the email templates rely on.
+// src/controllers -> src/docs when tsx runs the sources; dist/controllers ->
+// dist/docs in a build (copy-templates.mjs lifts src/docs there) — the same
+// relative resolution the email templates rely on.
 const specPath = path.join(here, '..', 'docs', 'openapi.yaml')
 
 export function buildDocsRouter(): Router {

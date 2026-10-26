@@ -11,7 +11,7 @@ Two deployable images and an identity provider:
 browser ── nginx (frontend image) ──┬── static SPA (built once, configured at runtime)
                                     ├── /app/v1/*  ──→ backend (Express 5)
                                     └── /kcadmin/* ──→ Keycloak admin API (caller's own token)
-backend ──→ Postgres (app.api_* SQL functions)
+backend ──→ Postgres (schema + integrity; the rules live in TypeScript)
         ──→ Keycloak (password grant, JWKS, service account)
         ──→ SMTP relay (closed-by-default delivery policy)
         ──→ Mayan EDMS (optional, /document facade)
@@ -51,13 +51,52 @@ runs `up` on every boot (bounded retries, fatal on exhaustion). Never edit an
 applied migration; regenerate `docs/sql/app_single_migration.sql` after every
 new one — the bundle and the runner are interchangeable by construction.
 
-### 3.2 The thin chain
+### 3.2 The backend is layered MVC; PostgreSQL keeps schema and integrity
 
-Business logic lives in `app.api_*` SQL functions returning contract-shaped
-camelCase JSONB. Routes are: RBAC gate → shape validation → one `callApi()`
-→ answer. Postgres errors translate centrally (SQLSTATE → problem+json:
-23505→409, FK/check/not-null/P0001→422, bad input→400). A `RAISE EXCEPTION`
-in a function IS the business-rule refusal.
+The layering the reference project arrived at after moving its rules out of
+PL/pgSQL, carried over whole. "MVC" for a JSON API means: **controllers** are
+thin HTTP adapters, the **model** is the domain (rules, value objects,
+`DomainError`) plus the repositories that persist it, and the **views** are
+presenters that shape the JSON. `eslint-plugin-boundaries`
+(`backend/eslint.config.js`) makes a wrong-direction import a lint error, not
+a review comment:
+
+| Layer | Folder | May import | Role |
+|---|---|---|---|
+| Controllers | `src/controllers/*.controller.ts` | services, presenters, domain, http, middleware, auth, db, integrations, mfa | Parse and shape-check the request, authorise (`requireOperation`), call one service, answer. One Router per resource. |
+| Services | `src/services/` | domain, repositories, integrations, presenters, db, http, auth | Use-cases: apply the rules, run the repository calls in ONE `withTransaction` (or `withReadSnapshot` for a multi-statement read), answer the presenter's JSON. |
+| Domain (Model) | `src/domain/` | nothing but itself | Pure rules — `notes.ts`, `errors.ts` (`DomainError`: invalid 400, forbidden 403, not_found 404, conflict 409, refused 422). Unit-tested beside them. |
+| Repositories | `src/repositories/*.repository.ts` | domain, db | The only SQL — Kysely over the one pool, table and column names typed from `db/schema.generated.ts`. Take a `Kysely<DB>` (`onTx(tx)` inside a use-case). |
+| Presenters (View) | `src/presenters/*.presenter.ts` | domain, repositories, integrations (types) | Rows → the contract's camelCase JSON, values in jsonb's forms (`json.ts`). |
+| Integrations | `src/integrations/{keycloak,mail,sms,mayan}` | domain, db, http, auth | Everything outbound. |
+| Cross-cutting | `config/`, `logger.ts`, `utils/`, `redis/`, `db/`, `http/`, `middleware/`, `auth/`, `mfa/` | — | `mfa/` is a self-contained module (its own routes and store). |
+
+What stays in PostgreSQL, because it is integrity rather than rule: tables,
+constraints, indexes, the append-only guard on `app.config_audit`, and the
+AUDIT STAMPS — `app.fn_stamp_audit_fields` (0001) fills `created_by` /
+`updated_by` / `updated_at` from the per-transaction setting `app.actor`,
+which `db/transaction.ts` publishes from the signed-in username
+(`db/actorContext.ts`, mounted after `authenticate`). No repository passes an
+actor, and no function in the database shapes a response.
+
+**Value forms are contract.** `db/pool.ts` keeps DATE as `YYYY-MM-DD` text
+and renders timestamps in jsonb's form (`2026-09-23T07:08:50.936571+00:00`),
+so repositories and presenters pass them through. The generated schema
+still types timestamps as `Date` (kysely-codegen has no switch for it), so
+each repository declares its row interface and reads with `$castTo<Row>()`.
+
+**Errors**: a rule refuses by throwing a `DomainError`; the error handler
+answers its status with its sentence verbatim (the frontend shows it). HTTP
+shape checks in a controller throw `ProblemError`s (`http/problem.ts`).
+Postgres errors translate centrally (SQLSTATE → problem+json: 23505→409,
+FK/check/not-null/P0001→422, bad input→400) — the floor under the domain's
+rules, not a substitute for them.
+
+**Tests** live beside the code: `npm test` runs the domain, presenters and
+the HTTP surface (`buildApp()` + supertest) with no database;
+`npm run test:db` runs `*.db.test.ts` against `DATABASE_URL`, each test in a
+rolled-back transaction. After a migration, `npm run db:types` regenerates
+the schema types and `db:types:check` proves them current.
 
 ### 3.3 Config-not-code
 
@@ -130,8 +169,14 @@ repo variables.
 
 - No E2E browser-test workspace (the reference project keeps Playwright in a
   separate workspace; add one on the same pattern).
-- The notes example demonstrates CRUD but not a workflow state machine —
-  transition functions + audit trail + notifications are the natural next
-  pattern to port when a fork needs them.
+- The notes example demonstrates CRUD but not a workflow state machine. The
+  reference project's shape for one fits these layers directly: the
+  transition table and its guards as pure functions in `domain/`, one
+  `withTransaction` per verb in `services/` that locks the aggregate row
+  (`SELECT … FOR UPDATE`), an audit-log repository written in the same
+  transaction, and notifications raised there too.
+- No read cache. The reference project caches presented reads in Redis,
+  tagged and invalidated after COMMIT; add it in `services/` when a read
+  becomes hot.
 - Single SPA client; a dual-portal split (two Keycloak clients, two route
-  trees) is a documented extension of `kcSession.ts`.
+  trees) is a documented extension of `integrations/keycloak/session.ts`.

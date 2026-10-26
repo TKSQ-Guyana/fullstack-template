@@ -7,7 +7,7 @@
 import { Router, type Request, type Response } from 'express'
 import { env } from '../config/env.js'
 import { logger } from '../logger.js'
-import { maskNumber, sendSms, smsConfigured } from '../services/sms.js'
+import { maskNumber, sendSms, smsConfigured } from '../integrations/sms/sms.js'
 import { phoneFor } from './identity.js'
 import { getCredentials, createLoginToken, getLoginToken, consumeVerifiedToken } from './store.js'
 

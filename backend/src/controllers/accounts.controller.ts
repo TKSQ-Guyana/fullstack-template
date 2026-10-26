@@ -19,13 +19,10 @@
 // says exactly that rather than leaving them to guess.
 import { Router, type Request, type Response } from 'express'
 import jwt from 'jsonwebtoken'
-import { forbidden, notFound, unauthorized, unprocessable } from '../http/problem.js'
+import { forbidden, unauthorized } from '../http/problem.js'
 import { principalOf } from '../middleware/auth.js'
-import { findUserById } from '../services/kcServiceAccount.js'
-import { looksLikeEmail, mailConfigured, maskEmail, sendMail } from '../services/mailer.js'
-import { invitationMail } from '../services/mailTemplates.js'
-import { listInvitations, markMailed, mintInvitation } from '../services/passwordInvitations.js'
-import { logger } from '../logger.js'
+import { presentIssuedInvitation } from '../presenters/invitation.presenter.js'
+import { issueInvitation, listInvitations } from '../services/passwordInvitations.js'
 
 export const accountsRouter = Router()
 
@@ -62,25 +59,17 @@ function requireManageUsers(req: Request): void {
 }
 
 /**
- * Send (or resend) the set-password link for one account.
- *
- * WHY IT TAKES A KEYCLOAK USER ID and reads the rest from the realm, rather
- * than taking a name and an address from the body: the address the link goes
- * to must be the one ON THE ACCOUNT. A caller who could name the destination
- * could point somebody else's set-password link at their own inbox, which is
- * the whole attack this endpoint would otherwise create.
- *
- * A MAIL FAILURE IS NOT AN ERROR HERE. The account exists and the invitation
- * row exists; only the delivery did not happen. Answering 500 would make the
- * screen report a failed provision for an account that was created, so this
- * answers 200 with `mailed: false` and the reason, and the screen offers a
- * resend.
+ * Send (or resend) the set-password link for one account. The address is read
+ * from the account, never from the request (services/passwordInvitations.ts
+ * issueInvitation says why), and a mail failure answers 200 with
+ * `mailed: false` and the reason — the account and the invitation exist; only
+ * the delivery did not happen, and the screen offers a resend.
  */
 accountsRouter.post('/accounts/:kcUserId/password-email', async (req: Request, res: Response) => {
   requireManageUsers(req)
 
   // Express 5 types a route param as string | string[]. A repeated param means
-  // no single account was named, which findUserById then answers null for.
+  // no single account was named, which the account lookup then answers 404 for.
   const rawId = req.params.kcUserId
   const kcUserId = typeof rawId === 'string' ? rawId : ''
   const purpose =
@@ -88,68 +77,16 @@ accountsRouter.post('/accounts/:kcUserId/password-email', async (req: Request, r
       ? ('reset' as const)
       : ('provision' as const)
 
-  const user = await findUserById(kcUserId)
-  if (!user) throw notFound('No such account in this realm.')
-
-  const email = user.email?.trim() ?? ''
-  if (!looksLikeEmail(email)) {
-    // A real and reachable state: an account created in the Keycloak console
-    // without an address. Named as itself rather than reported as a mail
-    // failure, because no amount of resending will fix it.
-    throw unprocessable(
-      `The account “${user.username}” has no email address on it, so there is nowhere to send the link. Add one to the account first.`,
-    )
-  }
-
-  const { token, expiresAt } = await mintInvitation({
+  const outcome = await issueInvitation({
     kcUserId,
-    username: user.username,
-    email,
     purpose,
     createdBy: principalOf(req).username,
   })
-
-  const mail = invitationMail({
-    firstName: user.firstName ?? '',
-    username: user.username,
-    token,
-    expiresAt,
-    purpose,
-  })
-
-  const result = await sendMail({
-    to: email,
-    subject: mail.subject,
-    text: mail.text,
-    html: mail.html,
-  })
-  if (result.sent) await markMailed(token)
-
-  logger.info(
-    { username: user.username, to: maskEmail(email), purpose, sent: result.sent },
-    'set-password invitation issued',
-  )
-
-  // THE TOKEN IS NOT IN THE RESPONSE. It would let an administrator open
-  // somebody else's link — and having created the account, they could then
-  // sign in as them. The one way to the link is the mailbox on the account.
-  res.json({
-    mailed: result.sent,
-    reason: result.sent ? null : (result.reason ?? 'mail could not be sent'),
-    maskedTo: maskEmail(email),
-    expiresAt: expiresAt.toISOString(),
-    mailConfigured: mailConfigured(),
-  })
+  res.json(presentIssuedInvitation(outcome))
 })
 
-/**
- * Every account's latest invitation — the register's Password column.
- *
- * ONE CALL FOR THE WHOLE TABLE. The obvious alternative, asking Keycloak
- * whether each account has a credential, is a request per row and gets slower
- * exactly as the realm grows. This is a single read of our own table.
- */
+/** Every account's latest invitation — the register's Password column. */
 accountsRouter.get('/accounts/password-invitations', async (req: Request, res: Response) => {
   requireManageUsers(req)
-  res.json({ invitations: await listInvitations() })
+  res.json(await listInvitations())
 })

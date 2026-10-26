@@ -27,7 +27,7 @@ import {
   passwordGrant,
   refreshGrant,
   setSessionCookies,
-} from '../services/kcSession.js'
+} from '../integrations/keycloak/session.js'
 
 export const authRouter = Router()
 

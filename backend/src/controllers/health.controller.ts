@@ -3,7 +3,7 @@
 import { Router } from 'express'
 import { healthcheck } from '../db/pool.js'
 import { redisHealthy } from '../redis/client.js'
-import { dmsHealthy } from '../services/dms.js'
+import { dmsHealthy } from '../integrations/mayan/dms.js'
 import { env } from '../config/env.js'
 
 export const healthRouter = Router()

@@ -1,13 +1,14 @@
-// /notes — the example feature's HTTP surface, and the route pattern to copy:
-// RBAC gate -> parse/validate the shape -> service call -> answer. Business
-// rules live in the SQL functions; Postgres errors are translated by the
-// error handler (a RAISE EXCEPTION lands as 422 problem+json).
+// /notes — the example feature's HTTP surface, and the controller pattern to
+// copy: RBAC gate -> read and shape-check the request -> one service call ->
+// answer. Nothing else: the rules are the domain's (domain/notes.ts), the SQL
+// the repository's, the JSON the presenter's, and a refusal or a missing note
+// arrives as a DomainError the error handler answers.
 import { Router, type Request, type Response } from 'express'
 import { badRequest, notFound } from '../http/problem.js'
 import { principalOf } from '../middleware/auth.js'
 import { requireOperation } from '../middleware/rbac.js'
 import { assertFirstUse } from '../middleware/idempotency.js'
-import { createNote, deleteNote, getNote, listNotes, updateNote } from '../services/notes.js'
+import * as notes from '../services/notes.js'
 import { qint, qstr } from '../utils/query.js'
 
 export const notesRouter = Router()
@@ -30,6 +31,7 @@ interface NoteBody {
   actionUuid?: unknown
 }
 
+/** The body's SHAPE — types only. What the values may be is the domain's call. */
 function readBody(body: NoteBody): { title?: string; body?: string; tags?: string[] } {
   const out: { title?: string; body?: string; tags?: string[] } = {}
   if ('title' in body) {
@@ -50,21 +52,20 @@ function readBody(body: NoteBody): { title?: string; body?: string; tags?: strin
 }
 
 notesRouter.get('/notes', requireOperation('notes.read'), async (req: Request, res: Response) => {
-  const result = await listNotes(
-    qstr(req.query.q),
-    Math.min(qint(req.query.limit) ?? 50, 200),
-    qint(req.query.offset) ?? 0,
+  res.json(
+    await notes.listNotes({
+      q: qstr(req.query.q),
+      limit: Math.min(qint(req.query.limit) ?? 50, 200),
+      offset: qint(req.query.offset),
+    }),
   )
-  res.json(result ?? { items: [], total: 0 })
 })
 
 notesRouter.get(
   '/notes/:noteId',
   requireOperation('notes.read'),
   async (req: Request, res: Response) => {
-    const note = await getNote(idOf(req))
-    if (!note) throw notFound('No such note.')
-    res.json(note)
+    res.json(await notes.getNote(idOf(req)))
   },
 )
 
@@ -81,30 +82,18 @@ notesRouter.post('/notes', requireOperation('notes.write'), async (req: Request,
     action: 'notes.create',
   })
 
-  const note = await createNote({
-    title: input.title,
-    body: input.body,
-    tags: input.tags,
-    actor: principal.username || principal.subject,
-  })
-  res.status(201).json(note)
+  res.status(201).json(await notes.createNote({ ...input, title: input.title }))
 })
 
 notesRouter.patch(
   '/notes/:noteId',
   requireOperation('notes.write'),
   async (req: Request, res: Response) => {
-    const principal = principalOf(req)
     const input = readBody((req.body ?? {}) as NoteBody)
     if (!('title' in input) && !('body' in input) && !('tags' in input)) {
       throw badRequest('Nothing to change — send title, body and/or tags.')
     }
-    const note = await updateNote(idOf(req), {
-      ...input,
-      actor: principal.username || principal.subject,
-    })
-    if (!note) throw notFound('No such note.')
-    res.json(note)
+    res.json(await notes.updateNote(idOf(req), input))
   },
 )
 
@@ -112,8 +101,7 @@ notesRouter.delete(
   '/notes/:noteId',
   requireOperation('notes.write'),
   async (req: Request, res: Response) => {
-    const result = await deleteNote(idOf(req))
-    if (!result?.deleted) throw notFound('No such note.')
+    await notes.deleteNote(idOf(req))
     res.status(204).end()
   },
 )

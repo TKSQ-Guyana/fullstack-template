@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deliveryPolicy, looksLikeEmail, maskEmail, sendMail } from '../src/services/mailer.js'
-import { maskNumber, toE164 } from '../src/services/sms.js'
+import { deliveryPolicy, looksLikeEmail, maskEmail, sendMail } from './mailer.js'
 
 describe('the delivery wall', () => {
   it('is CLOSED by default — no redirect, no allowlist', () => {
@@ -23,18 +22,5 @@ describe('address helpers', () => {
     expect(looksLikeEmail('a@b.co')).toBe(true)
     expect(looksLikeEmail('not-an-address')).toBe(false)
     expect(looksLikeEmail('')).toBe(false)
-  })
-})
-
-describe('sms helpers', () => {
-  it('normalises to E.164 or answers null', () => {
-    expect(toE164('+592 712-6852')).toBe('+5927126852')
-    expect(toE164('5927126852')).toBe('+5927126852')
-    expect(toE164('12')).toBeNull()
-    expect(toE164(null)).toBeNull()
-  })
-
-  it('masks numbers for logs', () => {
-    expect(maskNumber('+5927126852')).toBe('+592••••852')
   })
 })

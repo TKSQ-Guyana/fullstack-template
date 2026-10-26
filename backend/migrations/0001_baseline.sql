@@ -4,13 +4,52 @@
 -- Conventions this lineage follows (see docs/ARCHITECTURE.md):
 --   * Migrations are the ONLY schema channel. Add new numbered files; never
 --     edit one that has been applied anywhere.
---   * Business logic lives in app.api_* SQL functions returning JSONB shaped
---     as the contract's camelCase — routes stay thin (src/db/pool.ts callApi).
+--   * PostgreSQL keeps SCHEMA AND INTEGRITY — tables, constraints, indexes,
+--     the audit stamps, append-only guards. Business RULES live in TypeScript
+--     (backend/src/domain), SQL in the repositories, JSON in the presenters;
+--     no function here shapes an API response.
 --   * Every migration has a paired .down.sql.
 
 CREATE SCHEMA IF NOT EXISTS app;
 
 SET search_path = app, public;
+
+-- ============================================================================
+-- 0. AUDIT STAMPS (who and when, filled by the database, not by callers)
+--
+-- withTransaction (src/db/transaction.ts) publishes the signed-in username as
+-- the per-transaction setting `app.actor`; this trigger reads it, so every
+-- row a use-case writes is stamped without a repository passing an actor
+-- around. Attach it to any table carrying created_by / created_at /
+-- updated_by / updated_at:
+--
+--   CREATE TRIGGER trg_<table>_audit_stamp BEFORE INSERT OR UPDATE ON app.<table>
+--       FOR EACH ROW EXECUTE FUNCTION app.fn_stamp_audit_fields();
+--
+-- Give created_by a DEFAULT 'system' so an INSERT need not name it (the
+-- repositories never do). The published actor wins over any value the row
+-- arrives with — the setting is the verified token's word; outside a
+-- transaction that published one (a psql session, a script) the column's
+-- own value stands. updated_* stay NULL until the first UPDATE, so "never
+-- changed" is visible.
+-- ============================================================================
+CREATE OR REPLACE FUNCTION app.fn_stamp_audit_fields()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+    v_actor TEXT := NULLIF(current_setting('app.actor', true), '');
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        NEW.created_at := COALESCE(NEW.created_at, now());
+        NEW.created_by := COALESCE(v_actor, NEW.created_by, 'system');
+    ELSE
+        -- History is immutable: an UPDATE may not rewrite who created what.
+        NEW.created_at := OLD.created_at;
+        NEW.created_by := OLD.created_by;
+        NEW.updated_at := now();
+        NEW.updated_by := COALESCE(v_actor, 'system');
+    END IF;
+    RETURN NEW;
+END $$;
 
 -- ============================================================================
 -- 1. CONFIG (config-not-code: operational dials live in rows, not images)
@@ -99,7 +138,8 @@ CREATE TABLE app.mfa_registration_challenges (
 );
 
 -- ============================================================================
--- 4. PASSWORD INVITATIONS (src/services/passwordInvitations.ts)
+-- 4. PASSWORD INVITATIONS (src/services/passwordInvitations.ts; the SQL in
+--    src/repositories/invitations.repository.ts)
 --
 -- Accounts are provisioned with no password; a single-use link, mailed to the
 -- address on the account, is the only way to set one. THE TOKEN NEVER LANDS
@@ -133,35 +173,6 @@ CREATE INDEX idx_password_invitations_user
     ON app.password_invitations (kc_user_id, created_at DESC);
 CREATE INDEX idx_password_invitations_expires
     ON app.password_invitations (expires_at);
-
--- One row per account — the most recent invitation, whatever became of it —
--- with the usable-state verdict derived HERE so the browser cannot disagree
--- with the server about whether a link still works.
-CREATE OR REPLACE FUNCTION app.api_password_invitations()
-RETURNS JSONB LANGUAGE sql AS $$
-    SELECT COALESCE(jsonb_agg(row), '[]'::jsonb)
-    FROM (
-        SELECT DISTINCT ON (kc_user_id) jsonb_build_object(
-            'kcUserId',  kc_user_id,
-            'username',  username,
-            'email',     email,
-            'purpose',   purpose,
-            'createdBy', created_by,
-            'createdAt', created_at,
-            'expiresAt', expires_at,
-            'usedAt',    used_at,
-            'mailed',    mailed,
-            'state',     CASE
-                             WHEN used_at IS NOT NULL      THEN 'set'
-                             WHEN expires_at <= now()      THEN 'expired'
-                             WHEN NOT mailed               THEN 'not_sent'
-                             ELSE                               'invited'
-                         END
-        ) AS row
-        FROM app.password_invitations
-        ORDER BY kc_user_id, created_at DESC
-    ) latest;
-$$;
 
 COMMENT ON TABLE app.password_invitations IS
     'Single-use set-password links. Stores the token hash only; the token exists in the email.';

@@ -80,7 +80,7 @@ const schema = z.object({
     .optional()
     .transform((v) => (v ?? 'true').toLowerCase() !== 'false'),
 
-  // --- the approval link by SMS (src/services/sms.ts) ----------------------
+  // --- the approval link by SMS (src/integrations/sms/sms.ts) --------------
   // Off unless configured: an unconfigured deployment falls back to the
   // on-screen copy link rather than failing sign-in.
   SMS_ENABLED: booleanish,
@@ -109,7 +109,7 @@ const schema = z.object({
   KC_SERVICE_CLIENT_ID: z.string().default('app-provisioning-service'),
   KC_SERVICE_CLIENT_SECRET: z.string().default(''),
 
-  // --- outbound email (src/services/mailer.ts) -----------------------------
+  // --- outbound email (src/integrations/mail/mailer.ts) --------------------
   // OFF UNLESS CONFIGURED. An environment with no relay must still work —
   // callers say plainly that no mail was sent, rather than failing the act.
   MAIL_ENABLED: booleanish,
@@ -130,7 +130,7 @@ const schema = z.object({
   // anyway: it REWRITES a From it does not own).
   MAIL_FROM: z.string().default(''),
   MAIL_REPLY_TO: z.string().default(''),
-  // The delivery wall (services/mailer.ts): resolved addresses may be REAL
+  // The delivery wall (integrations/mail/mailer.ts): resolved addresses may be REAL
   // people, so a relay credential alone never opens delivery. Every
   // environment states its policy: redirect everything to one test inbox, or
   // allowlist who it may mail ('*' = open — production, and the dev sink).
@@ -152,7 +152,7 @@ const schema = z.object({
   REDIS_ENABLED: booleanish,
   REDIS_URL: z.string().default('redis://localhost:6379'),
 
-  // --- external document store (src/services/dms.ts, Mayan EDMS) -----------
+  // --- external document store (src/integrations/mayan/dms.ts, Mayan EDMS) -
   DMS_ENABLED: booleanish,
   DMS_URL: z.string().default(''),
   DMS_USERNAME: z.string().default(''),

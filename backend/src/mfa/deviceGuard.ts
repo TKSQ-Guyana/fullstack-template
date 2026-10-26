@@ -35,7 +35,7 @@
 import crypto from 'node:crypto'
 import type { Request, Response } from 'express'
 import { env } from '../config/env.js'
-import { cookiesOf } from '../services/kcSession.js'
+import { cookiesOf } from '../integrations/keycloak/session.js'
 
 /**
  * Marks the browser that ran a password grant. Read only by this guard, so
