@@ -18,9 +18,14 @@ const schema = z.object({
   // rebrands every outbound message in one place.
   APP_NAME: z.string().default('App Portal'),
   PORT: z.coerce.number().int().positive().default(8081),
-  // Every base path serves the same API: /app/v1 for the frontend (proxied by
-  // vite/nginx), /api/v1 for direct callers (Postman, smoke tests).
-  BASE_PATHS: z.string().default('/app/v1,/api/v1'),
+  // The API is mounted ONCE, at `${BASE_PATH}/${API_VERSION}` (= /api/v1,
+  // exported below as env.apiRoot) — for the frontend (vite/nginx proxy it)
+  // and Postman alike. The base path is deployment configuration (the
+  // ingress door); the version is code (API_VERSION below), so a v2 is
+  // another router mounted beside this one, never another env value.
+  // Changing it means rebuilding the backend image: the MFA UI bakes
+  // `${apiRoot}/mfa/` into its asset paths.
+  BASE_PATH: z.string().default('/api'),
   CORS_ORIGINS: z.string().default('*'),
   JSON_BODY_LIMIT: z.string().default('10mb'),
   UPLOAD_MAX_MB: z.coerce.number().positive().default(25),
@@ -182,12 +187,17 @@ if (!parsed.success) {
 
 const raw = parsed.data
 
+/** The API version segment — code, not configuration (see BASE_PATH). */
+export const API_VERSION = 'v1'
+
+/** BASE_PATH normalised: a leading slash, no trailing one; '' for a root mount. */
+const basePathSegments = raw.BASE_PATH.trim().replace(/^\/+|\/+$/g, '')
+const basePath = basePathSegments ? `/${basePathSegments}` : ''
+
 export const env = {
   ...raw,
-  basePaths: raw.BASE_PATHS.split(',')
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p) => (p.startsWith('/') ? p : `/${p}`)),
+  /** Where the whole API is mounted: `${BASE_PATH}/${API_VERSION}` — /api/v1. */
+  apiRoot: `${basePath}/${API_VERSION}`,
   corsOrigins:
     raw.CORS_ORIGINS.trim() === '*'
       ? ('*' as const)

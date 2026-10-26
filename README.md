@@ -25,7 +25,7 @@ docker compose -f docker-compose.dev.yml up -d --build
 | Where     | What                                                          |
 | --------- | ------------------------------------------------------------- |
 | :3000     | the app (sign in: `manager@example.dev` / your APP_DEV_PASSWORD) |
-| :8081     | the backend — `/health`, `/app/v1`, `/api/v1`, Swagger at `/api/v1/docs/` |
+| :8081     | the backend — `/health`, the API at `/api/v1`, Swagger at `/api/v1/docs/` |
 | :8085     | Keycloak (admin/admin, realm `app-realm`)                      |
 | :5433     | Postgres (postgres/postgres, db `app_db`)                      |
 | :8025     | Mailpit — every mail the stack sends lands here                |
@@ -34,7 +34,7 @@ Frontend dev loop (hot reload — don't rebuild docker for frontend changes):
 
 ```bash
 npm install
-npm run dev --workspace=frontend      # vite at :5173, proxying /app/v1 to :8081
+npm run dev --workspace=frontend      # vite at :5173, proxying /api/v1 to :8081
 ```
 
 Demo accounts (seeded by `keycloak-local/setup-dev.mjs` on every `up`):

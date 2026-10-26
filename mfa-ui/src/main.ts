@@ -10,7 +10,7 @@ import { startAuthentication, startRegistration } from '@simplewebauthn/browser'
 const API = (import.meta.env.VITE_API_URL as string | undefined) ?? apiFromLocation()
 
 function apiFromLocation(): string {
-  // …/app/v1/mfa/verify -> …/app/v1/mfa
+  // …/api/v1/mfa/verify -> …/api/v1/mfa
   return window.location.pathname.replace(/\/(enroll|verify)\/?$/, '')
 }
 

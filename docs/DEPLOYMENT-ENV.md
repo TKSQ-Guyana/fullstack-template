@@ -18,7 +18,7 @@ ones:
 | `KC_ISSUER` | Set when browsers and the backend reach Keycloak at DIFFERENT addresses — it must equal the issuer browsers' tokens carry. |
 | `KC_SERVICE_CLIENT_ID/SECRET` | The confidential service account. Needs realm-management grants: `view-realm`, `view-users`, `manage-realm`, `manage-users` (granted BY HAND once per realm). |
 | `AUTH_COOKIE_SECURE` | Image default `true`. Override to `false` only on a plain-http trial, where Secure cookies silently never return. |
-| `BASE_PATHS` | Default `/app/v1,/api/v1`. Changing the first segment requires rebuilding the image (the MFA UI bakes it). |
+| `BASE_PATH` | Default `/api`; the API is served at `${BASE_PATH}/v1` and nowhere else. Changing it requires rebuilding the image (the MFA UI bakes it) and the frontend's `API_BASE` to match. |
 | `MFA_RP_ID`, `MFA_ORIGINS`, `MFA_PUBLIC_URL` | MUST name the app's public origin — a passkey is bound to the exact host the phone's browser shows; localhost defaults fit only the dev stack. |
 | `MAIL_*` | See the delivery wall below. |
 | `DMS_*` | `DMS_ENABLED=false` (default) is supported placeholder mode. |
@@ -41,12 +41,11 @@ Neither set = every recipient refused, loudly, in the logs.
 | Variable | Why |
 | --- | --- |
 | `KC_URL`, `KC_REALM` | What the BROWSER uses — the public edge. Written into `/config.js` at container start. |
-| `KC_INTERNAL_URL` | What NGINX dials for `/kcadmin` — Keycloak's inside address when the public edge cannot be hairpinned. Defaults to `KC_URL`. |
-| `API_UPSTREAM` | Origin only — no path, no trailing slash. Feeds `proxy_pass ${API_UPSTREAM}/app/v1/`. |
-| `API_BASE`, `USERS_BASE` | Paths the browser uses; `USERS_BASE` must stay a PATH (an absolute URL skips the proxy — the start-up script warns). |
+| `API_UPSTREAM` | Origin only — no path, no trailing slash. Feeds `proxy_pass ${API_UPSTREAM}/api/v1/`. |
+| `API_BASE` | The path the browser calls, default `/api/v1` — the backend's API root, proxied on this origin. |
 | `MFA_ENABLED` | Default `true`; `false` is the only string that disables the gate. Fails CLOSED against an unreachable upstream. |
 | `MFA_BASE` | Empty = "this origin" (deployed shape). Set only for tunnel-based phone testing. |
-| `UPLOAD_MAX` | Body ceiling on the `/app/v1/` proxy (document uploads ride it). Default `25m`. |
+| `UPLOAD_MAX` | Body ceiling on the `/api/v1/` proxy (document uploads ride it). Default `25m`. |
 | `APP_NAME` | Display name in the chrome and mail. |
 
 ## Smallest working set
@@ -68,7 +67,6 @@ MAIL_REDIRECT_TO=qa-inbox@example.org    # until go-live; then the allowlist
 
 # frontend
 KC_URL=https://id.example.org
-KC_INTERNAL_URL=http://keycloak.internal:8080   # if the edge cannot hairpin
 KC_REALM=app-realm
 API_UPSTREAM=http://backend:8081
 ```
@@ -86,7 +84,7 @@ app's origin to that client's Web Origins.
    CLOSED` warning here means the wall is up and nobody stated the policy).
 3. The frontend container's log shows `40-runtime-config.sh: wrote ...` with
    the right KC_URL/KC_REALM and no warnings.
-4. Sign in with a provisioned account; `GET /app/v1/me` (via the browser's
+4. Sign in with a provisioned account; `GET /api/v1/me` (via the browser's
    network tab) shows the expected role and permissions.
 5. Send a set-password invitation; it arrives where the delivery policy says
    it must (the redirect inbox, or the real mailbox on an allowlisted domain).

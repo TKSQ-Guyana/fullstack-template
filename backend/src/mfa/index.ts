@@ -1,8 +1,8 @@
 // The WebAuthn second factor, IN this backend. One process serves the app API
 // and the whole MFA surface, so the stack needs no extra pod.
 //
-// Everything lives UNDER THE API BASE PATHS (`/app/v1/mfa/...`,
-// `/api/v1/mfa/...`), riding the exact same door as the rest of the API. That
+// Everything lives UNDER THE API ROOT (`/api/v1/mfa/...`, config/env.ts
+// apiRoot), riding the exact same door as the rest of the API. That
 // is deliberate deployment strategy, not tidiness: an edge that routes the
 // base path to this backend while its WAF 403s unknown root paths needs no
 // extra rule for a base-pathed MFA surface.
@@ -11,7 +11,7 @@
 //   <base>/mfa/ws          the "approved" push — attached to the HTTP server
 //                          in ../index.ts, upgrades bypass Express
 //   <base>/mfa/webauthn/*  the ceremony API the phone-facing pages call
-//                          (their build bakes VITE_API_URL=<primary base>/mfa)
+//                          (their build bakes VITE_API_URL=<apiRoot>/mfa)
 //   <base>/mfa/enroll      those pages, when the built UI is present
 //   <base>/mfa/verify      (vite `--base` prefixes their asset URLs to match)
 //   <base>/mfa/mfa-assets/ the pages' hashed build output

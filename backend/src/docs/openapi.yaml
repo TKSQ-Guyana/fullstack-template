@@ -12,10 +12,8 @@ info:
     HttpOnly cookies; direct callers (this UI, Postman) send a Keycloak Bearer
     token instead. Every error is RFC-7807 problem+json.
 servers:
-  - url: /app/v1
-    description: Frontend proxy path
   - url: /api/v1
-    description: Direct path (Postman, smoke tests)
+    description: The one API root — through the frontend's proxy and direct alike
 tags:
   - name: health
   - name: auth

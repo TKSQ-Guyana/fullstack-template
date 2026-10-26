@@ -23,7 +23,7 @@ import { COOKIE_ACCESS, cookiesOf } from '../integrations/keycloak/session.js'
 declare module 'express-serve-static-core' {
   interface Request {
     principal?: Principal
-    /** The raw verified access token — the /kcadmin proxy forwards it. */
+    /** The raw verified access token — /accounts reads its realm-management roles. */
     accessToken?: string
   }
 }

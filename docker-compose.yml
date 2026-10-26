@@ -20,7 +20,7 @@ services:
       APP_NAME: ${APP_NAME:-App Portal}
       # No default: a deployment must SAY where its database is.
       DATABASE_URL: ${DATABASE_URL:?point DATABASE_URL at the deployment database}
-      BASE_PATHS: ${BASE_PATHS:-/app/v1,/api/v1}
+      BASE_PATH: ${BASE_PATH:-/api}
       AUTH_MODE: enforce
       KC_URL: ${KC_URL:?point KC_URL at Keycloak}
       KC_REALM: ${KC_REALM:-app-realm}
@@ -70,13 +70,9 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-App Portal}
       KC_URL: ${KC_URL:?the Keycloak address the BROWSER uses}
-      # Keycloak's INSIDE address for nginx's /kcadmin proxy, when the public
-      # edge cannot be hairpinned from inside. Defaults to KC_URL.
-      KC_INTERNAL_URL: ${KC_INTERNAL_URL:-}
       KC_REALM: ${KC_REALM:-app-realm}
-      API_BASE: /app/v1
+      API_BASE: /api/v1
       API_UPSTREAM: ${API_UPSTREAM:-http://backend:8081}
-      USERS_BASE: /app/v1/kcadmin
       MFA_ENABLED: ${MFA_ENABLED:-true}
       UPLOAD_MAX: ${UPLOAD_MAX:-25m}
     depends_on:

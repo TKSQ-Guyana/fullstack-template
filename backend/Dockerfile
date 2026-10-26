@@ -37,11 +37,11 @@ RUN npm ci --workspace=mfa-ui --include-workspace-root=false --ignore-scripts --
 COPY mfa-ui/tsconfig.json mfa-ui/vite.config.ts mfa-ui/index.html mfa-ui/
 COPY mfa-ui/src mfa-ui/src
 WORKDIR /repo/mfa-ui
-# The pages live UNDER THE PRIMARY API BASE PATH (src/mfa/index.ts): the base
-# prefixes every asset URL with /app/v1/mfa/ so the hashed build output rides
-# the same door as the API. A deployment that changes BASE_PATHS[0] must
-# rebuild with a matching MFA_BASE_PATH.
-RUN MFA_BASE_PATH=/app/v1/mfa/ npm run build
+# The pages live UNDER THE API ROOT (src/mfa/index.ts): the base prefixes
+# every asset URL with /api/v1/mfa/ so the hashed build output rides the same
+# door as the API. A deployment that changes BASE_PATH must rebuild with a
+# matching MFA_BASE_PATH.
+RUN MFA_BASE_PATH=/api/v1/mfa/ npm run build
 
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production \

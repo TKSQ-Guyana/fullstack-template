@@ -9,7 +9,7 @@
 #   docker compose -f docker-compose.dev.yml up -d --build
 #
 #   frontend  http://localhost:3000   (demo accounts: keycloak-local/README.md)
-#   backend   http://localhost:8081   (/health, /app/v1, /api/v1, /api/v1/docs/)
+#   backend   http://localhost:8081   (/health, /api/v1, /api/v1/docs/)
 #   keycloak  http://localhost:8085   (admin / admin)
 #   postgres  localhost:5433          (postgres/postgres, db app_db — 5433 so a
 #                                      machine's own PostgreSQL keeps 5432)
@@ -239,7 +239,6 @@ services:
     environment:
       PORT: 8081
       APP_NAME: ${APP_NAME:-App Portal}
-      BASE_PATHS: /app/v1,/api/v1
       # 5173 = vite dev server, 3000 = the containerized frontend. Same-origin
       # calls through either proxy carry no Origin, so this only matters for
       # direct calls.
@@ -248,7 +247,7 @@ services:
       # serving, so a fresh volume bootstraps the whole schema.
       DATABASE_URL: ${APP_DATABASE_URL:-postgres://postgres:postgres@postgres:5432/app_db}
       AUTH_MODE: ${APP_AUTH_MODE:-enforce}
-      # Swagger UI at :3000/app/v1/docs/ (through nginx) and :8081/api/v1/docs/
+      # Swagger UI at :3000/api/v1/docs/ (through nginx) and :8081/api/v1/docs/
       # (direct). Dev stack only — the image default is off.
       API_DOCS_ENABLED: 'true'
       # JWKS is fetched in-network; the browser's tokens name localhost:8085 as
@@ -341,12 +340,9 @@ services:
       APP_NAME: ${APP_NAME:-App Portal}
       # What the BROWSER uses — must be reachable from the host machine.
       KC_URL: http://localhost:${APP_KC_PORT:-8085}
-      # What NGINX uses server-to-server (the /kcadmin proxy).
-      KC_INTERNAL_URL: http://keycloak:8080
       KC_REALM: app-realm
-      API_BASE: /app/v1
+      API_BASE: /api/v1
       API_UPSTREAM: http://backend:8081
-      USERS_BASE: /app/v1/kcadmin
       # Off by default locally (no phone at hand); flip per run with
       # APP_MFA_ENABLED=true to exercise the second factor the way a
       # deployment (default true) does.

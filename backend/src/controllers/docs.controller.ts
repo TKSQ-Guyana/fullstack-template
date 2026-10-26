@@ -38,8 +38,8 @@ export function buildDocsRouter(): Router {
     res.type('application/json').send(specJson)
   })
 
-  // The relative url is what lets one page work under BOTH base paths
-  // (/app/v1/docs/ through nginx at :3000, /api/v1/docs/ direct at :8081) —
+  // The relative url is what lets one page work through any door —
+  // /api/v1/docs/ through nginx at :3000 or direct at :8081 —
   // express.static's directory redirect guarantees the document URL ends in
   // /docs/, so ./openapi.json resolves beside it either way.
   docs.get('/swagger-initializer.js', (_req, res) => {

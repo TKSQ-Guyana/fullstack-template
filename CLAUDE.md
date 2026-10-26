@@ -52,8 +52,9 @@ here and say which spelling wins.>
 
 ## Architecture
 
-`backend/` (Node 20+/Express 5/TS) serves `/app/v1` (frontend, via
-vite/nginx proxy) and `/api/v1` (Postman). It is layered MVC
+`backend/` (Node 20+/Express 5/TS) serves ONE door, `/api/v1` = `BASE_PATH`
+(`/api`, configuration) + the code's `API_VERSION` (`v1`) — for the frontend
+(vite/nginx proxy) and Postman alike. It is layered MVC
 (`docs/ARCHITECTURE.md` §3.2): `controllers/*.controller.ts` (HTTP: parse,
 authorise, call, answer) → `services/` (use-cases, one `withTransaction`
 each) → `domain/` (pure rules, `DomainError`) + `repositories/*.repository.ts`
@@ -66,8 +67,9 @@ throughout.
 
 - **Auth is server-side**: the browser holds NO tokens. `POST /auth/login`
   runs the Keycloak password grant and sets HttpOnly SameSite=Strict cookies;
-  middleware accepts cookie or Bearer; `/kcadmin/*` is a pass-through
-  forwarding the caller's own token. Frontend `@/auth/keycloak.ts` is a thin
+  middleware accepts cookie or Bearer. There is no Keycloak admin
+  pass-through: account administration is `/accounts/*`, done by the
+  backend's service account. Frontend `@/auth/keycloak.ts` is a thin
   `/auth/*` client with a keycloak-js-shaped surface.
 - **Roles**: Keycloak `APP_ADMIN/APP_MANAGER/APP_USER` → personas
   `ADMIN/MANAGER/USER`. Backend matrix in `src/auth/permissions.ts`; frontend

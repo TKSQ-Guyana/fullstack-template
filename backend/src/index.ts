@@ -20,7 +20,7 @@ const server = app.listen(env.PORT, () => {
   logger.info(
     {
       port: env.PORT,
-      basePaths: env.basePaths,
+      apiRoot: env.apiRoot,
       authMode: env.AUTH_MODE,
       redis: env.REDIS_ENABLED,
       dms: env.DMS_ENABLED,

@@ -15,7 +15,7 @@ Three demo users, one per persona; every one signs in with the
 
 | Username              | Persona | Notes                                             |
 | --------------------- | ------- | ------------------------------------------------- |
-| `admin@example.dev`   | ADMIN   | also holds realm-management roles for /kcadmin    |
+| `admin@example.dev`   | ADMIN   | also holds realm-management roles for /accounts   |
 | `manager@example.dev` | MANAGER | writes notes                                      |
 | `user@example.dev`    | USER    | read-only                                         |
 

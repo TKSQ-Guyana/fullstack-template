@@ -1,9 +1,8 @@
 // The desktop's live "approved" signal — a WebSocket per pending login token,
 // pinged the moment the phone's assertion verifies.
 //
-//   * PATH: the socket answers at `<base>/mfa/ws` for EVERY configured base
-//     path (noServer + manual upgrade routing — ws's `path` option takes
-//     exactly one path). Upgrades bypass Express, so this attaches to the
+//   * PATH: the socket answers at `<apiRoot>/mfa/ws` (noServer + manual
+//     upgrade routing). Upgrades bypass Express, so this attaches to the
 //     HTTP server itself in ../index.ts.
 //
 //   * CROSS-INSTANCE FAN-OUT: with the store in Postgres, the phone's
@@ -59,11 +58,11 @@ async function connectListener(): Promise<void> {
 
 export function attachWebSocketServer(httpServer: Server): WebSocketServer {
   const wss = new WebSocketServer({ noServer: true })
-  const paths = new Set(env.basePaths.map((b) => `${b}/mfa/ws`))
+  const wsPath = `${env.apiRoot}/mfa/ws`
 
   httpServer.on('upgrade', (req, socket, head) => {
     const pathname = new URL(req.url ?? '', 'http://localhost').pathname
-    if (!paths.has(pathname)) {
+    if (pathname !== wsPath) {
       // Not ours, and nothing else on this server speaks WebSocket.
       socket.destroy()
       return

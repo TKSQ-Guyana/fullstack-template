@@ -1,12 +1,12 @@
 // Reading and writing Keycloak users, server-side, as the app's own
 // service account.
 //
-// WHY A SERVICE ACCOUNT rather than the caller's own token, which is the
-// pattern /kcadmin uses: some callers HAVE no token. The person opening a
-// set-password link has no session — that is the whole point of the link —
-// and the MFA flow must read the phone number from the identity provider
-// rather than from the browser (a caller who could name the destination could
-// point somebody else's approval link at their own phone).
+// WHY A SERVICE ACCOUNT rather than the caller's own token: some callers
+// HAVE no token. The person opening a set-password link has no session —
+// that is the whole point of the link — and the MFA flow must read the phone
+// number from the identity provider rather than from the browser (a caller
+// who could name the destination could point somebody else's approval link
+// at their own phone).
 //
 // `app-provisioning-service` needs, on its service account: query-users /
 // view-users for the lookups, manage-users for the password write. The local

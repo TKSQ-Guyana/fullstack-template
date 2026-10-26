@@ -40,24 +40,13 @@ function pick(key: string, buildTime: string | undefined, fallback: string): str
   return fallback
 }
 
-// Hoisted out of the object because usersBase below defaults onto it.
-const apiBase = pick('API_BASE', import.meta.env.VITE_API_BASE as string | undefined, '/app/v1')
-
 export const RUNTIME_CONFIG = Object.freeze({
   appName: pick('APP_NAME', import.meta.env.VITE_APP_NAME as string | undefined, 'App Portal'),
   kcUrl: pick('KC_URL', import.meta.env.VITE_KC_URL as string | undefined, 'http://localhost:8085'),
   kcRealm: pick('KC_REALM', import.meta.env.VITE_KC_REALM as string | undefined, 'app-realm'),
-  apiBase,
-
-  // WHERE THE BROWSER SENDS PROVISIONING CALLS — the backend's /kcadmin
-  // pass-through, on the same API base as everything else. The pass-through
-  // substitutes nothing: Keycloak authorises every operation against the
-  // signed-in administrator's own realm-management roles.
-  usersBase: pick(
-    'USERS_BASE',
-    import.meta.env.VITE_USERS_BASE as string | undefined,
-    `${apiBase}/kcadmin`,
-  ),
+  // WHERE THE API IS — the backend's one root, /api/v1, on this origin (the
+  // vite/nginx proxy forwards it). Every call goes through it.
+  apiBase: pick('API_BASE', import.meta.env.VITE_API_BASE as string | undefined, '/api/v1'),
 
   // The second factor gate between a correct password and the app. The string
   // is compared rather than coerced, so a typo reads as "on" instead of

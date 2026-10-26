@@ -9,15 +9,17 @@ Two deployable images and an identity provider:
 
 ```
 browser ── nginx (frontend image) ──┬── static SPA (built once, configured at runtime)
-                                    ├── /app/v1/*  ──→ backend (Express 5)
-                                    └── /kcadmin/* ──→ Keycloak admin API (caller's own token)
+                                    └── /api/v1/*  ──→ backend (Express 5)
 backend ──→ Postgres (schema + integrity; the rules live in TypeScript)
         ──→ Keycloak (password grant, JWKS, service account)
         ──→ SMTP relay (closed-by-default delivery policy)
         ──→ Mayan EDMS (optional, /document facade)
 ```
 
-In development, vite replaces nginx and proxies the same two prefixes.
+In development, vite replaces nginx and proxies the same prefix. The API has
+ONE root, `/api/v1` — `BASE_PATH` (deployment configuration, the ingress
+door) + `API_VERSION` (code, `config/env.ts`): the frontend and Postman use
+the same path, and a v2 would be another router mounted beside it.
 
 ## 2. Identity
 
@@ -34,11 +36,12 @@ matrix (`auth/permissions.ts`, `requireOperation`); the frontend's pure authz
 engine (`src/authz/`) answers the same questions for show/hide; `GET /me`
 returns the backend's verdict so the two can be cross-checked at runtime.
 
-`/kcadmin` adds no privilege: it forwards the CALLER's own verified token, so
-Keycloak authorises account administration against their realm-management
-roles. The service account (`app-provisioning-service`) exists for the calls
-that have no caller: boot-time realm ensure, the set-password write, the MFA
-phone-number lookup.
+No browser call reaches Keycloak's admin API — there is no pass-through.
+Account administration is the backend's `/accounts/*`, gated on the
+caller's verified `realm-management: manage-users` role and carried out by
+the service account (`app-provisioning-service`), which also makes the
+calls that have no caller: boot-time realm ensure, the set-password write,
+the MFA phone-number lookup.
 
 ## 3. Data
 
@@ -150,7 +153,7 @@ log and continue (`SKIP_*` overrides exist for all three phases).
 
 ## 6. MFA (WebAuthn phone approval)
 
-Lives IN the backend (`src/mfa`), under the API base path on purpose: one
+Lives IN the backend (`src/mfa`), under the API root on purpose: one
 edge door, no extra WAF/ingress rule. Three protections in honest order: the
 passkey (cryptographic), the same-browser refusal (server-enforced marker
 cookie), the desktop refusal (advisory UA/client-hints, with the iPad touch

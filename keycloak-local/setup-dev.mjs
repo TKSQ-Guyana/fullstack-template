@@ -66,8 +66,8 @@ const USERS = [
     first: 'Ada',
     last: 'Admin',
     roles: ['APP_ADMIN'],
-    // What the Users screen needs: the /kcadmin proxy forwards this person's
-    // own token and Keycloak authorises against these roles.
+    // What /accounts (set-password invitations) gates on: the backend reads
+    // manage-users off this person's own verified token.
     clientRoles: { 'realm-management': ['manage-users', 'view-users', 'view-realm'] },
   },
   { username: 'manager@example.dev', first: 'Mona', last: 'Manager', roles: ['APP_MANAGER'] },

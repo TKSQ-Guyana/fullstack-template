@@ -35,13 +35,10 @@ COPY --from=build /repo/frontend/dist /usr/share/nginx/html
 # as PID 1 with its own signal handling. `chmod` because a checkout on Windows
 # carries no exec bit.
 #
-# ORDER MATTERS. 12 defaults KC_INTERNAL_URL to KC_URL; it is `.envsh` so the
-# entrypoint SOURCES it, putting its export in the environment that
-# 20-envsubst then substitutes into the nginx config. 40 writes the browser's
-# /config.js afterwards.
-COPY frontend/docker/12-kc-internal-url.envsh /docker-entrypoint.d/12-kc-internal-url.envsh
+# The 40- prefix runs it after the image's own 20-envsubst (which fills the
+# nginx template), and it writes the browser's /config.js.
 COPY frontend/docker/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
-RUN chmod +x /docker-entrypoint.d/12-kc-internal-url.envsh /docker-entrypoint.d/40-runtime-config.sh
+RUN chmod +x /docker-entrypoint.d/40-runtime-config.sh
 
 # Only these prefixes are substituted into the nginx template. WITHOUT THE
 # FILTER, envsubst would also eat nginx's own runtime variables —
@@ -51,23 +48,15 @@ ENV NGINX_ENVSUBST_FILTER="^(KC_|API_|MFA_|UPLOAD_|APP_)"
 
 # Defaults for a plain `docker run` with no -e flags. Override per environment;
 # the app falls back to its build-time values if these are blanked.
-# KC_INTERNAL_URL is deliberately NOT defaulted here: 12-kc-internal-url.envsh
-# falls back to KC_URL when it is unset, and an ENV default would hide that
-# fallback. Set it to Keycloak's INSIDE address when the container cannot
-# hairpin to the public edge — it feeds the /kcadmin proxy, never the browser.
 ENV KC_URL=http://localhost:8085 \
     KC_REALM=app-realm \
-    API_BASE=/app/v1 \
-    # Where /app/v1/ is forwarded. It goes straight into proxy_pass, so it can
+    API_BASE=/api/v1 \
+    # Where /api/v1/ is forwarded. It goes straight into proxy_pass, so it can
     # never be empty; an unconfigured deployment 502s on API calls, which is
     # the honest answer — the app is live-only and has no seed to hide behind.
     API_UPSTREAM=http://backend:8081 \
-    # Upload ceiling on the /app/v1 proxy — document uploads ride it.
+    # Upload ceiling on the /api/v1 proxy — document uploads ride it.
     UPLOAD_MAX=25m \
-    # A PATH, not a URL — the BACKEND's /kcadmin pass-through on the API base.
-    # Must agree with API_BASE; an absolute value skips the proxy entirely and
-    # 40-runtime-config.sh warns if it sees one.
-    USERS_BASE=/app/v1/kcadmin \
     # The second factor. ON by default: a security control that has to be
     # switched on is one that will be found switched off. With an unreachable
     # upstream the gate fails CLOSED, never open.

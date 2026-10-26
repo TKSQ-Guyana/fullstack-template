@@ -12,7 +12,6 @@ import { authenticate } from './middleware/auth.js'
 import { actorContext } from './db/actorContext.js'
 import { healthRouter } from './controllers/health.controller.js'
 import { authRouter } from './controllers/auth.controller.js'
-import { kcadminRouter } from './controllers/kcadmin.controller.js'
 import { meRouter } from './controllers/me.controller.js'
 import { accountsRouter } from './controllers/accounts.controller.js'
 import { passwordSetupRouter } from './controllers/passwordSetup.controller.js'
@@ -54,8 +53,8 @@ export function buildApp(): express.Express {
   app.use(healthRouter)
   app.use(buildRateLimiter())
 
-  // The API surface, mounted at every configured base path
-  // (/app/v1 for the frontend proxy, /api/v1 for direct callers).
+  // The API surface, mounted ONCE at `${BASE_PATH}/${API_VERSION}` — /api/v1
+  // (config/env.ts apiRoot) — for the frontend's proxy and Postman alike.
   const api = express.Router()
   // /auth sits BEFORE authenticate: login and session-lookup cannot demand
   // the session they exist to establish. Everything else requires it.
@@ -78,13 +77,12 @@ export function buildApp(): express.Express {
   // Everything behind authenticate acts as the signed-in username — the
   // identity the audit columns record (db/actorContext.ts).
   api.use(actorContext)
-  api.use(kcadminRouter)
   api.use(accountsRouter)
   api.use(meRouter)
   api.use(notesRouter)
   api.use(documentsRouter)
 
-  for (const basePath of env.basePaths) app.use(basePath, api)
+  app.use(env.apiRoot, api)
 
   app.use(notFoundHandler)
   app.use(errorHandler)

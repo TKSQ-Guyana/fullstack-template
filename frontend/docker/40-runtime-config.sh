@@ -29,7 +29,6 @@ esc() {
 KC_URL_VALUE="$(esc "${KC_URL:-}")"
 KC_REALM_VALUE="$(esc "${KC_REALM:-}")"
 API_BASE_VALUE="$(esc "${API_BASE:-}")"
-USERS_BASE_VALUE="$(esc "${USERS_BASE:-}")"
 MFA_ENABLED_VALUE="$(esc "${MFA_ENABLED:-}")"
 MFA_BASE_VALUE="$(esc "${MFA_BASE:-}")"
 APP_NAME_VALUE="$(esc "${APP_NAME:-}")"
@@ -42,21 +41,11 @@ window.__ENV__ = {
   "KC_URL": "${KC_URL_VALUE}",
   "KC_REALM": "${KC_REALM_VALUE}",
   "API_BASE": "${API_BASE_VALUE}",
-  "USERS_BASE": "${USERS_BASE_VALUE}",
   "MFA_ENABLED": "${MFA_ENABLED_VALUE}",
   "MFA_BASE": "${MFA_BASE_VALUE}",
   "APP_NAME": "${APP_NAME_VALUE}"
 };
 EOF
-
-# Provisioning pointed somewhere other than this origin. `usersBase` is a PATH
-# nginx proxies; an absolute URL bypasses the proxy and needs CORS on
-# Keycloak's admin endpoints, which is not something this image can arrange.
-case "${USERS_BASE:-}" in
-  http://* | https://*)
-    echo "40-runtime-config.sh: WARNING USERS_BASE=${USERS_BASE} is absolute, so provisioning calls will skip this container's /kcadmin proxy and need CORS on Keycloak." >&2
-    ;;
-esac
 
 # The gate on, but the enrolment link pointing at localhost — which on the
 # user's PHONE is the phone itself, so "register a device" opens nothing.

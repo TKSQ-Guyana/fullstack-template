@@ -1,12 +1,10 @@
 // /accounts — the administrator's half of the set-password invitation.
 //
-// AUTHORISATION IS THE INTERESTING PART, and it is not the same problem
-// /kcadmin has. That proxy forwards the caller's own token and lets Keycloak
-// decide, so it adds no privilege and needs no rule of its own. These endpoints
-// cannot do that: minting a set-password token is an act in OUR database, and
-// spending it later writes a password using the APP's service account. The app
-// is therefore the thing granting privilege, and it must not grant what
-// Keycloak has not.
+// AUTHORISATION IS THE INTERESTING PART. These endpoints cannot simply forward
+// the caller's token to Keycloak and let it decide: minting a set-password
+// token is an act in OUR database, and spending it later writes a password
+// using the APP's service account. The app is therefore the thing granting
+// privilege, and it must not grant what Keycloak has not.
 //
 // So the gate reads `realm-management: manage-users` off the caller's own
 // verified token — the same claim Keycloak itself authorises its admin API

@@ -28,10 +28,9 @@ The layer rules are enforced by `eslint-plugin-boundaries` (`eslint.config.js`);
 - `/mfa/*` — the WebAuthn second factor (pre-auth; the one-time token is the credential)
 - `/password-setup/*` — the set-password link's public half
 - `/docs/` — Swagger UI, only when `API_DOCS_ENABLED`
-- `/kcadmin/*` — Keycloak admin pass-through (the caller's own token)
 - `/accounts/*` — set-password invitations (gated on the caller's manage-users)
 - `/me`, `/notes*`, `/document/*` — behind `authenticate`
-- `/health` — root-mounted, outside the base paths
+- `/health` — root-mounted, outside the API root
 
 ## Run it locally
 

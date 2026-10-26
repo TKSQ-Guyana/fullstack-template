@@ -1,5 +1,5 @@
-# WebSocket upgrade plumbing for the /app/v1/ block below (the MFA approval
-# socket at /app/v1/mfa/ws). The standard map: when the client asks to
+# WebSocket upgrade plumbing for the /api/v1/ block below (the MFA approval
+# socket at /api/v1/mfa/ws). The standard map: when the client asks to
 # upgrade, forward that ask; when it doesn't, send an empty Connection header
 # so ordinary keep-alive requests stay untouched. Valid here because conf.d
 # files are included at http level — this sits OUTSIDE the server block.
@@ -46,60 +46,20 @@ server {
         add_header Cache-Control "public, max-age=2592000, immutable";
     }
 
-    # ============== account provisioning (Keycloak admin API) ==============
-    #
-    # The app calls `/kcadmin/...` on its own origin and this forwards it to
-    # the realm's admin base, so `/kcadmin/users` becomes
-    # `${KC_URL}/admin/realms/${KC_REALM}/users`.
-    #
-    # NO auth_request AND NO CREDENTIAL SUBSTITUTION, deliberately: the
-    # caller's own Bearer token is passed straight through, so KEYCLOAK
-    # decides whether this person may create a user, against the
-    # realm-management roles on their account — strictly stronger than a
-    # signed-in gate, and "signed in" is not good enough for an endpoint that
-    # can mint an account holding any role in the realm.
-    location /kcadmin/ {
-        # Same-origin with the app, not with Keycloak, whose admin endpoints
-        # have a CORS filter — cleared for the same reason as /app/v1/ below.
-        proxy_set_header Origin "";
-
-        proxy_set_header Authorization     $http_authorization;
-        proxy_set_header Host              $proxy_host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        client_max_body_size 1m;
-        proxy_read_timeout   60s;
-
-        proxy_http_version 1.1;
-        proxy_ssl_server_name on;
-
-        # THE TRAILING SLASH ON BOTH SIDES IS LOAD-BEARING: with it,
-        # /kcadmin/users maps to /admin/realms/${KC_REALM}/users; without it
-        # nginx passes the /kcadmin prefix on and every call 404s inside
-        # Keycloak.
-        #
-        # KC_INTERNAL_URL, not KC_URL: this call never touches a browser, and
-        # dialling the public edge from inside the infrastructure is the
-        # hairpin that 502s.
-        proxy_pass ${KC_INTERNAL_URL}/admin/realms/${KC_REALM}/;
-    }
-
     # ===================== the API =====================
     #
-    # The app calls `/app/v1/...` on its own origin, the same path the backend
+    # The app calls `/api/v1/...` on its own origin, the same path the backend
     # serves at its root. The whole MFA surface rides this block too:
-    # challenge calls at /app/v1/mfa/login/*, the approval WebSocket at
-    # /app/v1/mfa/ws, the ceremony API, and the phone-facing enroll/verify
+    # challenge calls at /api/v1/mfa/login/*, the approval WebSocket at
+    # /api/v1/mfa/ws, the ceremony API, and the phone-facing enroll/verify
     # pages and their hashed assets — one door, no extra edge rule.
     #
     # `^~` IS LOAD-BEARING: the MFA pages' hashed build output lives at
-    # /app/v1/mfa/mfa-assets/*.js, and without ^~ the `\.(css|js|…)$` regex
+    # /api/v1/mfa/mfa-assets/*.js, and without ^~ the `\.(css|js|…)$` regex
     # above outranks this prefix and serves those paths from the SPA's html
-    # root — 404 for every one. Nothing under /app/v1/ may ever come from the
+    # root — 404 for every one. Nothing under /api/v1/ may ever come from the
     # SPA root.
-    location ^~ /app/v1/ {
+    location ^~ /api/v1/ {
         # THE BROWSER'S `Origin` MUST NOT REACH THE UPSTREAM. A strict CORS
         # policy in front of an API can answer a disallowed origin 200 WITH AN
         # EMPTY BODY rather than refusing — reads work (browsers send no
@@ -137,10 +97,10 @@ server {
         proxy_send_timeout   300s;
         proxy_read_timeout   300s;
 
-        # The URI is forwarded WHOLE: strip /app/v1/, then put /app/v1/ back —
+        # The URI is forwarded WHOLE: strip /api/v1/, then put /api/v1/ back —
         # which rebuilds the exact original path against any ORIGIN in
         # API_UPSTREAM. API_UPSTREAM therefore carries scheme, host and port
         # only: NO path, NO trailing slash.
-        proxy_pass ${API_UPSTREAM}/app/v1/;
+        proxy_pass ${API_UPSTREAM}/api/v1/;
     }
 }

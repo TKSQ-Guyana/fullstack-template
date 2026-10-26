@@ -50,9 +50,9 @@ mfaLoginRouter.post('/request', async (req: Request, res: Response) => {
   }
 
   const token = await createLoginToken(username)
-  // The phone opens this on the PRIMARY base path — the same door the rest of
-  // the MFA surface rides, so no edge/WAF rule has to know the pages exist.
-  const verifyUrl = `${env.MFA_PUBLIC_URL}${env.basePaths[0]}/mfa/verify?token=${token}`
+  // The phone opens this under the API root — the same door the rest of the
+  // MFA surface rides, so no edge/WAF rule has to know the pages exist.
+  const verifyUrl = `${env.MFA_PUBLIC_URL}${env.apiRoot}/mfa/verify?token=${token}`
 
   // Never blocks the answer for longer than SMS_TIMEOUT_MS, and never fails
   // it: a gateway that is down must not stop a sign-in the password and the
@@ -114,7 +114,7 @@ mfaLoginRouter.post('/enrol-link', async (req: Request, res: Response) => {
   // the app's own voice. `enrolUrl` is accepted and ignored for exactly that
   // reason — the caller may say what origin it saw, it does not decide.
   void enrolUrl
-  const url = `${env.MFA_PUBLIC_URL}${env.basePaths[0]}/mfa/enroll?username=${encodeURIComponent(username)}`
+  const url = `${env.MFA_PUBLIC_URL}${env.apiRoot}/mfa/enroll?username=${encodeURIComponent(username)}`
 
   if (!smsConfigured()) {
     res.json({ sent: false, reason: 'not-configured' })

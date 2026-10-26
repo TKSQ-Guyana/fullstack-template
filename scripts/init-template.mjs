@@ -13,7 +13,7 @@
 //
 // WHAT IT LEAVES ALONE, deliberately: the `app.` database schema, the
 // app_access/app_refresh cookies, the app_* notify channels, the APP_* env
-// prefix and realm roles, and the /app/v1 base path. Those are internal
+// prefix and realm roles, and the /api/v1 API root. Those are internal
 // spellings a product never shows anybody; renaming them buys nothing and
 // touches migrations. If you want them renamed anyway, grep for `app` — every
 // occurrence is a deliberate, documented literal.

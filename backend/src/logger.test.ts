@@ -17,8 +17,8 @@ describe('sanitizeUrl — what a logged URL may carry', () => {
     expect(sanitizeUrl('/API/V1/MFA/Login/Status/abc123')).toBe(
       '/API/V1/MFA/Login/Status/[redacted]',
     )
-    expect(sanitizeUrl('/app/v1/password-setup/zkew7mTd6UZV6Tk')).toBe(
-      '/app/v1/password-setup/[redacted]',
+    expect(sanitizeUrl('/api/v1/password-setup/zkew7mTd6UZV6Tk')).toBe(
+      '/api/v1/password-setup/[redacted]',
     )
     expect(sanitizeUrl('/api/v1/PASSWORD-SETUP/abc123/x')).toBe(
       '/api/v1/PASSWORD-SETUP/[redacted]/x',
@@ -40,8 +40,8 @@ describe('sanitizeUrl — what a logged URL may carry', () => {
     expect(sanitizeUrl('https://app.example.dev/set-password/abc?token=abc')).toBe(
       'https://app.example.dev/set-password/abc?token=[redacted]',
     )
-    expect(sanitizeUrl('https://h/app/v1/mfa/verify?token=abc&u=1')).toBe(
-      'https://h/app/v1/mfa/verify?token=[redacted]&u=1',
+    expect(sanitizeUrl('https://h/api/v1/mfa/verify?token=abc&u=1')).toBe(
+      'https://h/api/v1/mfa/verify?token=[redacted]&u=1',
     )
   })
 
@@ -73,11 +73,11 @@ describe('httpSerializers — the request and response a log line describes', ()
   })
 
   it("sanitises the referer: a page opened from a link carries the link's token", () => {
-    expect(serialise({ referer: 'https://h/app/v1/mfa/verify?token=zkew7mTd6UZV6Tk' })).toEqual({
-      referer: 'https://h/app/v1/mfa/verify?token=[redacted]',
+    expect(serialise({ referer: 'https://h/api/v1/mfa/verify?token=zkew7mTd6UZV6Tk' })).toEqual({
+      referer: 'https://h/api/v1/mfa/verify?token=[redacted]',
     })
-    expect(serialise({ referer: 'https://h/app/v1/password-setup/abc' })).toEqual({
-      referer: 'https://h/app/v1/password-setup/[redacted]',
+    expect(serialise({ referer: 'https://h/api/v1/password-setup/abc' })).toEqual({
+      referer: 'https://h/api/v1/password-setup/[redacted]',
     })
   })
 

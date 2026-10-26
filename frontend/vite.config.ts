@@ -28,7 +28,6 @@ function runtimeConfigPlugin(env: Record<string, string>): Plugin {
         KC_URL: env.KC_URL ?? '',
         KC_REALM: env.KC_REALM ?? '',
         API_BASE: env.API_BASE ?? '',
-        USERS_BASE: env.USERS_BASE ?? '',
         MFA_ENABLED: env.MFA_ENABLED ?? '',
         MFA_BASE: env.MFA_BASE ?? '',
         APP_NAME: env.APP_NAME ?? '',
@@ -57,13 +56,10 @@ export default defineConfig(({ mode }) => {
   // '' rather than 'VITE_' so server-side-only values are visible here. They
   // are never returned to the client — only used to build the proxies below.
   const env = loadEnv(mode, process.cwd(), '')
-  // The backend. Server-side only — the browser is told '/app/v1' and nothing
+  // The backend. Server-side only — the browser is told '/api/v1' and nothing
   // more (RUNTIME_CONFIG.apiBase), so the backend's address never enters the
   // bundle and moving it is a dev-server restart rather than a rebuild.
   const apiUpstream = (env.API_UPSTREAM || 'http://localhost:8081').replace(/\/+$/, '')
-  // Keycloak, for the admin-API proxy below.
-  const kcUrl = (env.KC_URL || env.VITE_KC_URL || 'http://localhost:8085').replace(/\/+$/, '')
-  const kcRealm = env.KC_REALM || env.VITE_KC_REALM || 'app-realm'
 
   return {
     plugins: [react(), tailwindcss(), runtimeConfigPlugin(env)],
@@ -79,13 +75,13 @@ export default defineConfig(({ mode }) => {
       proxy: {
         /**
          * The API, forwarded unchanged — NO REWRITE: the backend serves
-         * /app/v1/... at its root, so the browser's path IS the upstream path.
+         * /api/v1/... at its root, so the browser's path IS the upstream path.
          *
          * `ws: true` because the MFA "approved" push is a WebSocket at
-         * /app/v1/mfa/ws; without it the upgrade is dropped and the verdict
+         * /api/v1/mfa/ws; without it the upgrade is dropped and the verdict
          * only arrives via the slower polling fallback.
          */
-        '/app/v1': {
+        '/api/v1': {
           target: apiUpstream,
           changeOrigin: true,
           ws: true,
@@ -102,17 +98,6 @@ export default defineConfig(({ mode }) => {
               proxyReq.removeHeader('origin')
             })
           },
-        },
-        /**
-         * The Keycloak Admin REST API, for account provisioning. NOTHING IS
-         * SUBSTITUTED: the signed-in administrator's own token is forwarded
-         * (via the backend's /kcadmin in a container; directly here), so
-         * Keycloak authorises against THEIR realm-management roles.
-         */
-        '/kcadmin': {
-          target: kcUrl,
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/kcadmin/, `/admin/realms/${kcRealm}`),
         },
       },
     },

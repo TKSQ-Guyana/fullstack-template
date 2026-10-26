@@ -30,8 +30,14 @@ describe('unknown endpoints', () => {
   })
 
   it('inside the API meet authenticate first: 401 problem+json without a session', async () => {
-    const res = await request(app).get('/app/v1/nowhere')
+    const res = await request(app).get('/api/v1/nowhere')
     expect(res.status).toBe(401)
+    expect(res.headers['content-type']).toContain('application/problem+json')
+  })
+
+  it('the API is served at /api/v1 only — the retired /app/v1 is just a path that is not there', async () => {
+    const res = await request(app).get('/app/v1/me')
+    expect(res.status).toBe(404)
     expect(res.headers['content-type']).toContain('application/problem+json')
   })
 })
