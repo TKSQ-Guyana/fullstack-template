@@ -21,7 +21,7 @@ export async function connectRedis(): Promise<void> {
   if (!redis) return
   try {
     await redis.connect()
-    logger.info({ url: env.REDIS_URL }, 'redis connected')
+    logger.info({ url: env.redisUrlForLogs }, 'redis connected')
   } catch (err) {
     logger.warn({ err }, 'redis unreachable — continuing with in-memory fallbacks')
   }

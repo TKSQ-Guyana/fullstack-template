@@ -5,6 +5,7 @@
 // This is the ONLY place src/ reads process.env. Standalone scripts
 // (scripts/*.mjs) read it directly because they run outside the app.
 import { z } from 'zod'
+import { urlWithoutPassword } from './urls.js'
 
 const booleanish = z
   .string()
@@ -202,6 +203,8 @@ export const env = {
   kcAdminBase: `${raw.KC_URL.replace(/\/+$/, '')}/admin/realms/${raw.KC_REALM}`,
   mailFrom: raw.MAIL_FROM || raw.SMTP_USER,
   appPublicUrl: raw.APP_PUBLIC_URL.replace(/\/+$/, ''),
+  /** REDIS_URL with any password masked — the only spelling of it a log may carry. */
+  redisUrlForLogs: urlWithoutPassword(raw.REDIS_URL),
   isProduction: raw.NODE_ENV === 'production',
 }
 
