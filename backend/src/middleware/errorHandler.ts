@@ -31,6 +31,16 @@ export function fromPgError(err: PgError): ProblemError | null {
       return new ProblemError(400, `A field has an invalid value: ${err.message}`)
     case 'P0001': // raise_exception — an integrity guard in SQL (e.g. app.config_audit append-only)
       return new ProblemError(422, err.message)
+    case '40P01': // deadlock_detected
+    case '40001': // serialization_failure
+      // Two writers met on the same rows and Postgres chose this one to roll back —
+      // nothing of it was saved, and the same call succeeds once it is sent again.
+      // withRetryingTransaction (db/transaction.ts) retries these itself; this is
+      // the answer once its attempts are used up, or for a plain withTransaction.
+      return new ProblemError(
+        409,
+        'The records were busy — check again and retry. Nothing was saved.',
+      )
     default:
       return null
   }

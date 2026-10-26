@@ -6,18 +6,18 @@ Errors are RFC-7807 problem+json throughout.
 
 ## Layout
 
-| Folder                         | What lives there                                                              |
-| ------------------------------ | ----------------------------------------------------------------------------- |
-| `src/controllers/`             | one Router per resource — parse, authorise, call a service, answer            |
-| `src/services/`                | use-cases — one transaction each (`db/transaction.ts`)                        |
-| `src/domain/`                  | pure rules and `DomainError` — no IO, unit-tested beside them                 |
-| `src/repositories/`            | the only SQL (Kysely; types in `src/db/schema.generated.ts`)                  |
-| `src/presenters/`              | rows → the contract's JSON                                                    |
-| `src/integrations/`            | Keycloak (session, service account), mail, SMS, Mayan                         |
-| `src/db/`                      | the pool, Kysely, `withTransaction` / `withReadSnapshot`, the acting identity |
-| `src/http/`, `src/middleware/` | problem+json, auth, RBAC, idempotency, rate limit, the error handler          |
-| `src/auth/`                    | claims → personas, the operation matrix                                       |
-| `src/mfa/`                     | the WebAuthn second factor — a self-contained module                          |
+| Folder                         | What lives there                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------ |
+| `src/controllers/`             | one Router per resource — parse, authorise, call a service, answer                   |
+| `src/services/`                | use-cases — one transaction each (`db/transaction.ts`)                               |
+| `src/domain/`                  | pure rules and `DomainError` — no IO, unit-tested beside them                        |
+| `src/repositories/`            | the only SQL (Kysely; types in `src/db/schema.generated.ts`)                         |
+| `src/presenters/`              | rows → the contract's JSON                                                           |
+| `src/integrations/`            | Keycloak (session, service account), mail, SMS, Mayan                                |
+| `src/db/`                      | the pool, Kysely, the transaction helpers (`db/transaction.ts`), the acting identity |
+| `src/http/`, `src/middleware/` | problem+json, auth, RBAC, idempotency, rate limit, the error handler                 |
+| `src/auth/`                    | claims → personas, the operation matrix                                              |
+| `src/mfa/`                     | the WebAuthn second factor — a self-contained module                                 |
 
 The layer rules are enforced by `eslint-plugin-boundaries` (`eslint.config.js`);
 `docs/ARCHITECTURE.md` §3.2 has the table and the reasons.

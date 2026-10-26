@@ -89,13 +89,26 @@ each repository declares its row interface and reads with `$castTo<Row>()`.
 answers its status with its sentence verbatim (the frontend shows it). HTTP
 shape checks in a controller throw `ProblemError`s (`http/problem.ts`).
 Postgres errors translate centrally (SQLSTATE → problem+json: 23505→409,
-FK/check/not-null/P0001→422, bad input→400) — the floor under the domain's
-rules, not a substitute for them.
+FK/check/not-null/P0001→422, bad input→400, serialization failure or
+deadlock (40001/40P01)→409 "nothing was saved") — the floor under the
+domain's rules, not a substitute for them.
+
+**Transactions** (`db/transaction.ts`), one per use-case:
+`withTransaction` for a plain write; `withReadSnapshot` for a read whose
+statements must agree (a page and its total); `withRetryingTransaction` for
+a write that DECIDES from what it read (a verb that checks the current
+state) — a REPEATABLE READ snapshot, run again whole on a fresh client when
+Postgres answers 40001 or 40P01, up to three times, so the work must be
+re-runnable. `lockRow(tx, 'app.<table>', '<key column>', key)` takes the
+aggregate's row `FOR UPDATE` so two writers queue instead of colliding.
+Anything outside the database (a mail, a DMS upload) goes through
+`afterCommit`, which runs only for the attempt that committed.
 
 **Tests** live beside the code: `npm test` runs the domain, presenters and
 the HTTP surface (`buildApp()` + supertest) with no database;
-`npm run test:db` runs `*.db.test.ts` against `DATABASE_URL`, each test in a
-rolled-back transaction. After a migration, `npm run db:types` regenerates
+`npm run test:db` runs `*.db.test.ts` against `DATABASE_URL`, each test
+leaving nothing behind (rolled back, or — where it must commit to race
+another writer — deleting what it made). After a migration, `npm run db:types` regenerates
 the schema types and `db:types:check` proves them current.
 
 ### 3.3 Config-not-code
@@ -181,8 +194,8 @@ masks an `email` key in our own `logger.info({...})` calls.
 - The notes example demonstrates CRUD but not a workflow state machine. The
   reference project's shape for one fits these layers directly: the
   transition table and its guards as pure functions in `domain/`, one
-  `withTransaction` per verb in `services/` that locks the aggregate row
-  (`SELECT … FOR UPDATE`), an audit-log repository written in the same
+  `withRetryingTransaction` per verb in `services/` that starts with
+  `lockRow` on the aggregate, an audit-log repository written in the same
   transaction, and notifications raised there too.
 - No read cache. The reference project caches presented reads in Redis,
   tagged and invalidated after COMMIT; add it in `services/` when a read

@@ -23,6 +23,16 @@ describe('fromPgError', () => {
     }
   })
 
+  it('maps a serialization failure or a deadlock to 409 that says nothing was saved', () => {
+    for (const code of ['40001', '40P01']) {
+      const problem = fromPgError(pg(code, 'could not serialize access'))
+      expect(problem?.status).toBe(409)
+      expect(problem?.message).toBe(
+        'The records were busy — check again and retry. Nothing was saved.',
+      )
+    }
+  })
+
   it('leaves unknown codes to the 500 fallback', () => {
     expect(fromPgError(pg('XX000'))).toBeNull()
     expect(fromPgError(new Error('no code'))).toBeNull()
