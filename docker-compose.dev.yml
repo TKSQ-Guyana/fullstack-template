@@ -305,6 +305,9 @@ services:
       # reach.
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:${APP_FRONTEND_PORT:-3000}}
       LOG_FORMAT: json
+      # debug also prints every SQL query Kysely runs, with its parameters
+      # (src/db/kysely.ts) — `docker logs -f app-dev-backend` to watch them.
+      LOG_LEVEL: ${APP_LOG_LEVEL:-info}
     # ─── Outbound email: ON by default, INTO MAILPIT ─────────────────────────
     # mail.dev.env (committed, no secret) points the mailer at the sink above,
     # so the emails the app generates are real and readable at :8025. A REAL

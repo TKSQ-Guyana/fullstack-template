@@ -12,16 +12,60 @@
 // use-case transaction the service passes `onTx(tx)` instead, so the whole
 // use-case shares one connection and the `app.actor` setting the audit-stamp
 // trigger reads (db/transaction.ts).
-import { Kysely, PostgresDialect } from 'kysely'
+//
+// LOG_LEVEL=debug prints every query Kysely runs — its SQL with `$n`
+// placeholders, the parameters, the time it took — through the app's pino
+// logger, beside the request lines. Paste the SQL into psql and bind the
+// parameters (`… \bind 'a' 'b' \g`). Below debug nothing is wired in at all.
+// Statements sent with plain `query()` (BEGIN / set_config / COMMIT in
+// db/transaction.ts, lockRow, the MFA store, idempotency) do not pass through
+// Kysely and are not printed.
+import { Kysely, PostgresDialect, type LogEvent } from 'kysely'
 import type pg from 'pg'
+import { env } from '../config/env.js'
+import { logger } from '../logger.js'
 import { pool } from './pool.js'
 import type { DB } from './schema.generated.js'
 
 export type { DB }
 
+/**
+ * One query as a debug log line. The PARAMETERS ARE A PERSON'S DATA as often
+ * as not — an email, a name, a token's hash — so a production process keeps
+ * the SQL and only counts them: debug switched on to chase a problem there
+ * must not turn the log into a copy of the tables. A failed query names its
+ * SQLSTATE and never its message, which can quote the row ("Key (email)=(…)").
+ */
+export function queryLogEntry(event: LogEvent, withParameters: boolean): Record<string, unknown> {
+  const entry: Record<string, unknown> = {
+    sql: event.query.sql,
+    ...(withParameters
+      ? { parameters: event.query.parameters }
+      : { parameterCount: event.query.parameters.length }),
+    durationMs: Math.round(event.queryDurationMillis * 10) / 10,
+  }
+  if (event.level === 'error') {
+    const code = (event.error as { code?: unknown } | null)?.code
+    entry.code = typeof code === 'string' ? code : null
+  }
+  return entry
+}
+
+/** Kysely's log hook — present only when the logger would print debug. */
+const queryLog = logger.isLevelEnabled('debug')
+  ? {
+      log: (event: LogEvent) =>
+        logger.debug(
+          queryLogEntry(event, !env.isProduction),
+          event.level === 'error' ? 'sql failed' : 'sql',
+        ),
+    }
+  : {}
+
 /** The pool-backed instance for reads and single-statement writes. */
 export const db = new Kysely<DB>({
   dialect: new PostgresDialect({ pool }),
+  ...queryLog,
 })
 
 /**
@@ -45,5 +89,6 @@ export function onTx(client: pg.PoolClient): Kysely<DB> {
         end: () => Promise.resolve(),
       } as unknown as pg.Pool,
     }),
+    ...queryLog,
   })
 }

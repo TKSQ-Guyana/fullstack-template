@@ -35,6 +35,9 @@ here and say which spelling wins.>
   a secret in its path is added to `SECRET_PATH_PREFIXES`, a secret query
   parameter to `SECRET_QUERY_PARAMS`; an email is masked at the call site
   with `utils/mask.ts` (the logger masks an `email` key as the safety net).
+  The one deliberate exception is a development aid: `LOG_LEVEL=debug`
+  prints every Kysely query WITH its parameters (`db/kysely.ts`); a
+  production process prints the SQL and only counts the parameters.
 - **Postgres + backend are the ONLY data source.** No mock/seed data in the
   frontend; failure is loud — never fall back to fixtures when a call fails.
 - **Mail secret lives in `backend/.env.mail`** (gitignored) and nowhere else;

@@ -190,6 +190,16 @@ and `/mfa/login/status/:token`, secret query parameters (`token`, `code`, …)
 and search text. The logger itself also censors credential-shaped keys and
 masks an `email` key in our own `logger.info({...})` calls.
 
+**SQL at debug** (`backend/src/db/kysely.ts`). With `LOG_LEVEL=debug` (on the
+dev stack, `APP_LOG_LEVEL=debug`) every query Kysely runs is a `sql` log line:
+the SQL with `$n` placeholders, its parameters and its duration — paste it
+into psql and bind the values with `\bind … \g`. A failed one is `sql failed`
+with its SQLSTATE. Below debug the hook is not even installed. In production
+the line keeps the SQL and only counts the parameters, because they carry
+people's data. Statements sent with a plain `query()` (the transaction's own
+BEGIN/COMMIT, `lockRow`, the MFA store, idempotency) bypass Kysely and are not
+printed; for those, Postgres's own `log_statement = 'all'` on a dev database.
+
 ## 9. Known gaps
 
 - No E2E browser-test workspace (the reference project keeps Playwright in a
